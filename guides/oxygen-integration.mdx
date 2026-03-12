@@ -1,0 +1,476 @@
+---
+title: Oxygen XML Editor Integration
+description: Learn how to integrate DIM deliverables into Oxygen XML Editor for validation, tooltips, and authoring support
+icon: puzzle-piece
+---
+
+## Overview
+
+Integrating DIM into Oxygen XML Editor provides authors with:
+
+- **Real-time validation** against style guide rules using Schematron
+- **Contextual help** via element and attribute tooltips linking to style guide topics
+- **DIM authoring actions** for adding rules and annotations
+
+This integration transforms the style guide from a reference document into an active authoring assistant.
+
+## Prerequisites
+
+Before integration, ensure you have:
+
+- [Generated deliverables](/guides/generating-deliverables):
+  - `rules.sch` - Schematron validation schema
+  - `contentCompletionElementsMap.xml` - Content completion configuration
+  - Published WebHelp style guide
+- Oxygen XML Editor (Author or Developer edition)
+- Access to modify Oxygen framework configuration
+
+## Integration Architecture
+
+DIM integration involves three components:
+
+1. **Schematron validation** - Added as a validation scenario in the framework
+2. **Catalog configuration** - Maps URLs to local or remote resources
+3. **Content completion mappings** - Provides tooltip links to style guide
+
+## Setting Up the DIM Framework
+
+### Option 1: Extend the DITA Framework
+
+The recommended approach is to create a custom framework extending DITA:
+
+<Steps>
+  <Step title="Create a framework extension">
+    In Oxygen, go to **Options > Preferences > Document Type Association**.
+    
+    1. Select **DITA** (or **DITA Map** for map-specific changes)
+    2. Click **Extend**
+    3. Name it: `DITA-DIM` (or `dita-myproject`)
+    4. Click **OK**
+  </Step>
+
+  <Step title="Configure storage location">
+    Choose where to store the framework:
+    
+    - **External** - Store in a project directory for version control and team sharing
+    - **Internal** - Store in Oxygen's configuration (user-specific)
+    
+    For team use, select **External** and choose a directory like `frameworks/dita-dim/`.
+  </Step>
+
+  <Step title="Copy DIM framework files">
+    Copy these files from the DIM project to your framework directory:
+    
+    ```
+    frameworks/dita-dim/
+    ├── rules/
+    │   ├── rules.sch
+    │   ├── contentCompletionElementsMap.xml
+    │   ├── catalog.xml
+    │   └── library.sch
+    ├── css/
+    │   └── dim.css (optional, for DIM-specific styling)
+    └── oxygen-gim-extensions.jar (DIM authoring actions)
+    ```
+  </Step>
+</Steps>
+
+### Option 2: Use the Provided DIM Framework
+
+DIM includes a complete framework in `frameworks/dim/`:
+
+<Steps>
+  <Step title="Copy framework to Oxygen">
+    Copy the `frameworks/dim/` directory to Oxygen's frameworks folder:
+    
+    - **Windows:** `C:\Program Files\Oxygen XML Editor\frameworks\`
+    - **Mac:** `/Applications/Oxygen XML Editor/frameworks/`
+    - **Linux:** `/opt/oxygen/frameworks/`
+  </Step>
+
+  <Step title="Restart Oxygen">
+    Close and reopen Oxygen for the framework to be recognized.
+  </Step>
+
+  <Step title="Associate with DITA files">
+    The DIM framework extends DITA, so it will automatically apply to DITA files. You can verify in **Document Type Association** preferences.
+  </Step>
+</Steps>
+
+## Configuring Schematron Validation
+
+<Steps>
+  <Step title="Open validation settings">
+    In **Document Type Association**, select your DITA-DIM framework and click **Edit**.
+    
+    Navigate to the **Validation** tab.
+  </Step>
+
+  <Step title="Create a validation scenario">
+    If no scenario exists:
+    
+    1. Click **Create**
+    2. Name it: `DITA with Style Guide Rules`
+    3. Click **OK**
+  </Step>
+
+  <Step title="Add Schematron validation">
+    In the validation scenario:
+    
+    1. Click **Add** to add a validation unit
+    2. Select **Schema type:** `Schematron`
+    3. Set **Schema:** `${framework}/rules/rules.sch`
+    4. Set **Phase:** `#ALL` (validates all patterns)
+    5. Choose **Automatic validation** to validate on save, or leave unchecked for manual validation
+  </Step>
+
+  <Step title="Add default validation">
+    Also include standard DITA validation:
+    
+    1. Add another validation unit
+    2. Select **Schema type:** `Automatic (detect schema)`
+    3. This validates against DTD/XSD schemas
+  </Step>
+
+  <Step title="Save configuration">
+    Click **OK** to save the validation scenario and framework configuration.
+  </Step>
+</Steps>
+
+<Warning>
+Schematron validation can be resource-intensive for large files. Consider enabling it only for manual validation (not automatic) if performance is a concern.
+</Warning>
+
+## Configuring the Catalog
+
+The catalog file maps URLs to local resources, enabling tooltip links and resource resolution.
+
+<Steps>
+  <Step title="Edit catalog.xml">
+    Open `frameworks/dita-dim/rules/catalog.xml` (or your framework's catalog location).
+  </Step>
+
+  <Step title="Configure WebHelp base URL">
+    Update the `rewritePrefix` to point to your published WebHelp:
+    
+    **For local WebHelp:**
+    ```xml
+    <rewriteURI uriStartString="http://example.com/styleguide/webhelp/" 
+                rewritePrefix="${framework}/../../info-model/styleguide/webhelp/"/>
+    ```
+    
+    **For web-hosted WebHelp:**
+    ```xml
+    <rewriteURI uriStartString="http://example.com/styleguide/webhelp/" 
+                rewritePrefix="https://styleguide.yourcompany.com/"/>
+    ```
+  </Step>
+
+  <Step title="Configure content completion mappings">
+    Ensure the catalog maps the content completion configuration URL:
+    
+    ```xml
+    <uri name="http://www.oxygenxml.com/dita_dim/styleguide/contentCompletionElementsMap.xml" 
+         uri="contentCompletionElementsMap.xml"/>
+    ```
+    
+    The framework name in the URL (`dita_dim`) should match your framework's name (lowercased, spaces replaced with underscores).
+    
+    For a framework named `DITA-MyProject`, use:
+    ```xml
+    <uri name="http://www.oxygenxml.com/dita-myproject/styleguide/contentCompletionElementsMap.xml" 
+         uri="contentCompletionElementsMap.xml"/>
+    ```
+  </Step>
+
+  <Step title="Register the catalog in the framework">
+    In **Document Type Association > Edit > Catalogs** tab:
+    
+    1. Click **Add**
+    2. Select `${framework}/rules/catalog.xml`
+    3. Click **OK**
+  </Step>
+</Steps>
+
+## Enabling DIM Authoring Actions
+
+DIM provides custom actions for adding rules and annotations.
+
+<Steps>
+  <Step title="Add DIM JAR to classpath">
+    In **Document Type Association > Edit > Classpath** tab:
+    
+    1. Click **Add**
+    2. Select `${framework}/oxygen-gim-extensions.jar`
+    3. Click **OK**
+  </Step>
+
+  <Step title="Enable DIM CSS">
+    In **Document Type Association > Edit > Author** tab:
+    
+    1. Go to **CSS** sub-tab
+    2. Add an alternate CSS: `+ DIM`
+    3. Point it to `${framework}/css/dim.css`
+    
+    Authors can enable DIM actions by selecting **+ DIM** from the Styles dropdown.
+  </Step>
+
+  <Step title="Configure actions (optional)">
+    Advanced: You can customize which actions appear by editing the framework's action configuration in the **Author > Actions** tab.
+  </Step>
+</Steps>
+
+## Validation Scenarios
+
+Oxygen supports multiple validation configurations:
+
+### Scenario 1: Automatic Validation on Save
+
+- **Use case:** Catch errors as authors work
+- **Configuration:** Enable "Automatic validation" in validation unit
+- **Pros:** Immediate feedback
+- **Cons:** Performance impact on large files
+
+### Scenario 2: Manual Validation
+
+- **Use case:** Validate when author is ready
+- **Configuration:** Disable "Automatic validation"
+- **Pros:** No performance impact during editing
+- **Cons:** Requires author to remember to validate
+
+### Scenario 3: Validation Before Commit
+
+- **Use case:** Ensure quality before version control commit
+- **Configuration:** Manual validation + pre-commit hook
+- **Pros:** Prevents invalid content from entering repository
+- **Cons:** Requires workflow training
+
+## Testing the Integration
+
+<Steps>
+  <Step title="Open a DITA topic">
+    Load a DITA file that should be validated by your style guide rules.
+  </Step>
+
+  <Step title="Test Schematron validation">
+    1. Click the **Validate** button (or press Ctrl+Shift+V / Cmd+Shift+V)
+    2. Review the **Results** panel for any rule violations
+    3. Violations should include:
+       - Error message from your rule definition
+       - Link to the style guide topic where the rule is defined
+  </Step>
+
+  <Step title="Test content completion tooltips">
+    1. Position your cursor on an element (e.g., `<shortdesc>`)
+    2. View the tooltip (hover or use Ctrl+Q / Cmd+Q)
+    3. Look for a link with your annotation's link text
+    4. Click the link - it should open the corresponding WebHelp topic
+  </Step>
+
+  <Step title="Test DIM actions">
+    1. Select **+ DIM** from the Styles dropdown
+    2. Position cursor in a topic body
+    3. Use the **Insert Business Rules Section** action
+    4. Use the **Add Rule** action to insert a rule definition
+    5. Add metadata and use **Add Element Annotation** action
+  </Step>
+</Steps>
+
+## Sharing with Team Members
+
+### Version-Controlled Framework
+
+For teams using version control:
+
+<Steps>
+  <Step title="Store framework in repository">
+    Place your framework directory in your project repository:
+    
+    ```
+    my-project/
+    ├── content/
+    ├── frameworks/
+    │   └── dita-dim/
+    │       ├── rules/
+    │       ├── dim.framework
+    │       └── ...
+    └── README.md
+    ```
+  </Step>
+
+  <Step title="Configure framework paths">
+    Use relative paths with `${project.dir}` variables where possible.
+  </Step>
+
+  <Step title="Document setup">
+    Provide setup instructions:
+    
+    1. Clone the repository
+    2. In Oxygen, go to **Options > Preferences > Document Type Association**
+    3. Click **Add**
+    4. Point to `frameworks/dita-dim/dim.framework`
+    5. Restart Oxygen
+  </Step>
+</Steps>
+
+### Shared Network Location
+
+For teams with shared network access:
+
+<Steps>
+  <Step title="Deploy to network drive">
+    Copy framework files to a shared location:
+    
+    ```
+    \\server\frameworks\dita-dim\...
+    ```
+  </Step>
+
+  <Step title="Reference network paths">
+    In framework configuration, use UNC paths or mapped drives.
+  </Step>
+
+  <Step title="Instruct authors">
+    Authors add the framework via **Document Type Association** pointing to the network location.
+  </Step>
+</Steps>
+
+### Oxygen Framework Distribution
+
+For distributing to multiple users:
+
+<Steps>
+  <Step title="Package the framework">
+    Create a `.zip` archive of your framework directory.
+  </Step>
+
+  <Step title="Distribute to users">
+    Authors extract to their Oxygen frameworks folder:
+    
+    - Windows: `%APPDATA%\com.oxygenxml\frameworks\`
+    - Mac: `~/Library/Preferences/com.oxygenxml/frameworks/`
+    - Linux: `~/.com.oxygenxml/frameworks/`
+  </Step>
+
+  <Step title="Restart Oxygen">
+    Authors restart Oxygen for the framework to be recognized.
+  </Step>
+</Steps>
+
+## Troubleshooting
+
+### Validation Not Working
+
+**Check:**
+- `rules.sch` exists at `${framework}/rules/rules.sch`
+- Validation scenario is enabled for the document type
+- Schematron validation unit is configured correctly
+- Framework is associated with DITA files
+
+### Tooltips Not Showing Links
+
+**Check:**
+- `contentCompletionElementsMap.xml` exists in framework
+- Catalog maps the correct URL for your framework name
+- Framework name matches the URL (lowercase, underscores for spaces)
+- WebHelp is published and accessible at configured location
+
+### DIM Actions Not Appearing
+
+**Check:**
+- `oxygen-gim-extensions.jar` is in the framework classpath
+- DIM CSS is configured and selected in Styles dropdown
+- Oxygen was restarted after adding the JAR
+
+### Broken WebHelp Links
+
+**Check:**
+- `catalog.xml` `rewritePrefix` points to correct WebHelp location
+- WebHelp was published to expected directory
+- File names match (`.dita` -> `.html`)
+- For web-hosted: URL is accessible from author machines
+
+## Advanced Configuration
+
+### Custom Validation Phases
+
+Schematron supports phases for conditional validation:
+
+```xml
+<!-- In library.sch -->
+<schema>
+  <phase id="strict">
+    <active pattern="restrictWords"/>
+    <active pattern="avoidAttributeInElement"/>
+  </phase>
+  <phase id="lenient">
+    <active pattern="restrictWords"/>
+  </phase>
+</schema>
+```
+
+In Oxygen validation settings, set **Phase:** to `strict` or `lenient`.
+
+### Multiple Validation Scenarios
+
+Create different scenarios for different contexts:
+
+- **Draft validation** - Lenient rules for work-in-progress
+- **Review validation** - Full rules for peer review
+- **Publication validation** - Strictest rules for final output
+
+Authors select the appropriate scenario before validating.
+
+### Custom Quick Fixes
+
+Schematron supports QuickFix (SQF) for automated corrections:
+
+```xml
+<assert test="..." sqf:fix="fixTitle">
+  Title exceeds 8 words.
+</assert>
+
+<sqf:fix id="fixTitle">
+  <sqf:description>
+    <sqf:title>Truncate title to 8 words</sqf:title>
+  </sqf:description>
+  <sqf:replace match="text()" select="string-join(tokenize(., '\s+')[position() &lt;= 8], ' ')"/>
+</sqf:fix>
+```
+
+Authors can apply fixes directly from validation results.
+
+## WebHelp Deployment Options
+
+### Local Deployment
+
+```xml
+<rewriteURI uriStartString="http://example.com/styleguide/webhelp/" 
+            rewritePrefix="file:///C:/styleguide/webhelp/"/>
+```
+
+### Intranet Deployment
+
+```xml
+<rewriteURI uriStartString="http://example.com/styleguide/webhelp/" 
+            rewritePrefix="http://intranet.company.com/styleguide/"/>
+```
+
+### Public Deployment
+
+```xml
+<rewriteURI uriStartString="http://example.com/styleguide/webhelp/" 
+            rewritePrefix="https://docs.company.com/styleguide/"/>
+```
+
+## Next Steps
+
+- Review [Schematron pattern customization](/advanced/schematron-patterns)
+- Explore [framework customization options](/advanced/framework-customization)
+- Learn about [custom business rules](/advanced/custom-rules)
+
+## Additional Resources
+
+- [Oxygen Framework Customization Guide](https://www.oxygenxml.com/doc/ug-editor/topics/framework-customization.html)
+- [Schematron Validation in Oxygen](https://www.oxygenxml.com/doc/ug-editor/topics/schematron-validation.html)
+- [Content Completion Configuration](https://www.oxygenxml.com/doc/ug-editor/topics/content-completion-configuration.html)

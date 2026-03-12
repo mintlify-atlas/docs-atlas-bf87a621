@@ -1,0 +1,185 @@
+---
+title: Creating a Style Guide
+description: Learn how to create or customize a DITA-based style guide using the Dynamic Information Model framework
+icon: book
+---
+
+## Overview
+
+The DIM project uses DITA to create intelligent style guides that not only describe content rules but can also enforce them. You can either start with the provided sample style guide or customize it for your organization's specific needs.
+
+## DITA Structure
+
+DIM style guides use standard DITA information architecture:
+
+### Bookmap Structure
+
+Style guides are organized using a DITA bookmap (`styleguide.ditamap`). The bookmap provides the hierarchical structure and navigation:
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE bookmap PUBLIC "-//OASIS//DTD DITA BookMap//EN" "bookmap.dtd">
+<bookmap id="styleguide">
+  <booktitle>
+    <mainbooktitle>Information Model and Authoring Guidelines</mainbooktitle>
+  </booktitle>
+  <chapter href="c_InformationTypes.dita" navtitle="Information types">
+    <topicref href="c_TitlingTopics.dita" navtitle="Titling topics"/>
+    <topicref href="c_WritingShortDescriptions.dita" navtitle="Writing short descriptions"/>
+  </chapter>
+</bookmap>
+```
+
+### Topic Types
+
+Use standard DITA topic types for different kinds of style guide content:
+
+- **Concept topics** - Explain guidelines and best practices
+- **Reference topics** - Document element and attribute usage
+- **Task topics** - Provide step-by-step authoring procedures
+
+## Starting with the Sample Style Guide
+
+<Steps>
+  <Step title="Clone the DIM repository">
+    ```bash
+    git clone https://github.com/oxygenxml/dim.git
+    cd dim
+    ```
+    
+    The sample style guide is located in `info-model/styleguide.ditamap`.
+  </Step>
+
+  <Step title="Review the sample content">
+    Explore the provided topics in the `info-model/` directory:
+    
+    - `c_InformationTypes.dita` - Guidelines for different DITA topic types
+    - `c_TitlingTopics.dita` - Rules for writing effective titles
+    - `c_WritingShortDescriptions.dita` - Short description best practices
+    - `c_TaskStructure.dita` - Task topic structure requirements
+    
+    These serve as templates for your own guidelines.
+  </Step>
+
+  <Step title="Open in Oxygen XML Editor">
+    Open `info-model/styleguide.ditamap` in Oxygen XML Editor. Enable the **+ DIM** style from the *Styles* dropdown to access DIM-specific actions.
+  </Step>
+</Steps>
+
+## Creating Custom Topics
+
+<Steps>
+  <Step title="Create a new DITA topic">
+    In Oxygen, select **File > New** and choose the appropriate topic type (concept, task, or reference).
+  </Step>
+
+  <Step title="Write your guidelines">
+    Structure your topic with:
+    
+    - **Title** - Clear, descriptive heading
+    - **Short description** - Brief summary of the guideline
+    - **Body content** - Detailed guidance with examples
+    
+    Example concept topic:
+    
+    ```xml
+    <?xml version="1.0" encoding="UTF-8"?>
+    <!DOCTYPE concept PUBLIC "-//OASIS//DTD DITA Concept//EN" "concept.dtd">
+    <concept id="TitlingTopics">
+      <title>Titling Topics</title>
+      <conbody>
+        <p>DITA requires that you provide a title for all topics. 
+           The title element is the first element within the topic root element.</p>
+        <p>When writing titles, follow these guidelines:
+          <ul>
+            <li>Make the title specific to help users distinguish it from other topics.</li>
+            <li>Use words that accurately describe the content.</li>
+            <li>Limit the length to no more than eight words.</li>
+          </ul>
+        </p>
+      </conbody>
+    </concept>
+    ```
+  </Step>
+
+  <Step title="Add topics to the bookmap">
+    Insert your new topics into `styleguide.ditamap`:
+    
+    ```xml
+    <chapter href="c_CustomGuidelines.dita" navtitle="Custom Guidelines">
+      <topicref href="c_YourNewTopic.dita" navtitle="Your Topic Title"/>
+    </chapter>
+    ```
+  </Step>
+</Steps>
+
+## Customizing the Sample Style Guide
+
+### Replace Placeholder Content
+
+The sample style guide contains placeholders and comments marked with `<draft-comment>` tags. Search for these and replace with your organization's specific guidelines:
+
+```xml
+<draft-comment>Replace for each client</draft-comment>
+```
+
+### Update Company Information
+
+Modify the bookmap to use your company name:
+
+```xml
+<keydef keys="companyname">
+  <topicmeta>
+    <keywords>
+      <keyword>Your Company Name</keyword>
+    </keywords>
+  </topicmeta>
+</keydef>
+```
+
+### Add or Remove Sections
+
+Customize the chapter structure to match your organization's needs:
+
+- Remove irrelevant chapters
+- Add new chapters for specific content types
+- Reorganize the hierarchy to reflect your workflow
+
+## Best Practices
+
+<Warning>
+Maintain consistency in how you structure guideline topics. Use the same pattern throughout your style guide to make it easier for authors to find and understand rules.
+</Warning>
+
+- **Be specific** - Provide concrete examples rather than abstract principles
+- **Include rationale** - Explain *why* a rule exists, not just *what* it requires
+- **Use consistent terminology** - Define key terms and use them consistently
+- **Keep it current** - Update guidelines as your authoring practices evolve
+- **Make it searchable** - Use descriptive titles and good metadata
+
+## File Naming Convention
+
+Follow DITA best practices for file naming:
+
+- Use descriptive names: `c_WritingTitles.dita` not `topic1.dita`
+- Prefix by topic type: `c_` for concepts, `t_` for tasks, `r_` for references
+- Use camelCase or underscores for multi-word names
+- Keep names concise but meaningful
+
+## Next Steps
+
+Once you've created your style guide topics:
+
+1. [Define business rules](/guides/defining-rules) to enforce your guidelines
+2. [Annotate topics](/guides/annotating-topics) to make them discoverable
+3. [Generate deliverables](/guides/generating-deliverables) for use in Oxygen
+
+## Example Style Guide Topics
+
+Refer to these sample topics in `info-model/`:
+
+- **Element usage**: `c_UserInterface.dita` - Guidelines for UI elements like `<uicontrol>` and `<wintitle>`
+- **Content structure**: `c_TaskStructure.dita` - Required structure for task topics
+- **Attribute usage**: `c_MapAttributes.dita` - Proper use of map attributes
+
+These demonstrate how to write clear, actionable guidelines that authors can follow.

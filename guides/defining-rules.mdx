@@ -1,0 +1,428 @@
+---
+title: Defining Business Rules
+description: Learn how to add enforceable business rules to your style guide using DIM actions and Schematron patterns
+icon: gavel
+---
+
+## Overview
+
+DIM's key innovation is embedding enforceable business rules directly in style guide topics. These rules are instantiated from abstract Schematron patterns in the rule library and automatically compiled into a validation schema.
+
+## Rule Syntax
+
+Rules are defined using DITA `<dl>` (definition list) elements within a `<section>` marked with `audience="rules"`:
+
+```xml
+<section audience="rules">
+  <title>Business Rules</title>
+  <dl>
+    <dlhead>
+      <dthd>Rule</dthd>
+      <ddhd>restrictWords</ddhd>
+    </dlhead>
+    <dlentry>
+      <dt>parentElement</dt>
+      <dd>title</dd>
+    </dlentry>
+    <dlentry>
+      <dt>maxWords</dt>
+      <dd>8</dd>
+    </dlentry>
+    <dlentry>
+      <dt>message</dt>
+      <dd>Keep titles between 1 and 8 words.</dd>
+    </dlentry>
+  </dl>
+</section>
+```
+
+### Rule Anatomy
+
+- **dlhead/ddhd** - The rule name from the library (e.g., `restrictWords`, `avoidAttributeInElement`)
+- **dlentry/dt** - Parameter name
+- **dlentry/dd** - Parameter value
+- **message** parameter - The error message shown to authors
+
+## Adding Rules with DIM Actions
+
+<Steps>
+  <Step title="Enable DIM styles in Oxygen">
+    Open your style guide topic in Oxygen XML Editor. From the **Styles** dropdown, select **+ DIM** to enable DIM-specific actions.
+  </Step>
+
+  <Step title="Position your cursor">
+    Place the cursor where you want to add the business rules section (typically at the end of the topic body, before the closing `</conbody>` or `</refbody>` tag).
+  </Step>
+
+  <Step title="Insert a business rules section">
+    Use the DIM action to insert a section with `audience="rules"`:
+    
+    - Click the **Insert Business Rules Section** button in the toolbar, or
+    - Use the context menu to insert the section
+    
+    This creates:
+    ```xml
+    <section audience="rules">
+      <title>Business Rules</title>
+    </section>
+    ```
+  </Step>
+
+  <Step title="Add a rule definition">
+    Use the **Add Rule** DIM action to insert a `<dl>` element. You'll be prompted to:
+    
+    1. Select a rule from the library
+    2. Fill in the required parameters
+    3. Provide a user-friendly error message
+  </Step>
+</Steps>
+
+## Available Rule Patterns
+
+The DIM rule library (`info-model/rules/library.sch`) includes these abstract patterns:
+
+### Content Restrictions
+
+#### restrictWords
+
+Limit word count in an element:
+
+```xml
+<dl>
+  <dlhead>
+    <dthd>Rule</dthd>
+    <ddhd>restrictWords</ddhd>
+  </dlhead>
+  <dlentry>
+    <dt>parentElement</dt>
+    <dd>shortdesc</dd>
+  </dlentry>
+  <dlentry>
+    <dt>minWords</dt>
+    <dd>1</dd>
+  </dlentry>
+  <dlentry>
+    <dt>maxWords</dt>
+    <dd>50</dd>
+  </dlentry>
+  <dlentry>
+    <dt>message</dt>
+    <dd>Keep short descriptions between 1 and 50 words!</dd>
+  </dlentry>
+</dl>
+```
+
+#### restrictChildrenElements
+
+Limit which child elements are allowed:
+
+```xml
+<dl>
+  <dlhead>
+    <dthd>Rule</dthd>
+    <ddhd>restrictChildrenElements</ddhd>
+  </dlhead>
+  <dlentry>
+    <dt>parentElement</dt>
+    <dd>title</dd>
+  </dlentry>
+  <dlentry>
+    <dt>allowedChildren</dt>
+    <dd>ph</dd>
+  </dlentry>
+  <dlentry>
+    <dt>message</dt>
+    <dd>Only "ph" is allowed within a title element.</dd>
+  </dlentry>
+</dl>
+```
+
+### Element Presence
+
+#### recommendElementInParent
+
+Require an element that's optional in the DTD:
+
+```xml
+<dl>
+  <dlhead>
+    <dthd>Rule</dthd>
+    <ddhd>recommendElementInParent</ddhd>
+  </dlhead>
+  <dlentry>
+    <dt>parent</dt>
+    <dd>task</dd>
+  </dlentry>
+  <dlentry>
+    <dt>element</dt>
+    <dd>shortdesc</dd>
+  </dlentry>
+  <dlentry>
+    <dt>message</dt>
+    <dd>Short description is required for tasks.</dd>
+  </dlentry>
+</dl>
+```
+
+#### requireContentAfterElement
+
+Ensure content follows a specific element:
+
+```xml
+<dl>
+  <dlhead>
+    <dthd>Rule</dthd>
+    <ddhd>requireContentAfterElement</ddhd>
+  </dlhead>
+  <dlentry>
+    <dt>element</dt>
+    <dd>shortdesc</dd>
+  </dlentry>
+  <dlentry>
+    <dt>message</dt>
+    <dd>Avoid topics that contain nothing but a short description.</dd>
+  </dlentry>
+</dl>
+```
+
+### Attribute Restrictions
+
+#### avoidAttributeInElement
+
+Prohibit specific attributes:
+
+```xml
+<dl>
+  <dlhead>
+    <dthd>Rule</dthd>
+    <ddhd>avoidAttributeInElement</ddhd>
+  </dlhead>
+  <dlentry>
+    <dt>element</dt>
+    <dd>shortdesc</dd>
+  </dlentry>
+  <dlentry>
+    <dt>attribute</dt>
+    <dd>conref</dd>
+  </dlentry>
+  <dlentry>
+    <dt>message</dt>
+    <dd>Short descriptions should not use content references.</dd>
+  </dlentry>
+</dl>
+```
+
+### Content Pattern Matching
+
+#### avoidWordInElement
+
+Prevent specific words or phrases:
+
+```xml
+<dl>
+  <dlhead>
+    <dthd>Rule</dthd>
+    <ddhd>avoidWordInElement</ddhd>
+  </dlhead>
+  <dlentry>
+    <dt>element</dt>
+    <dd>title|p</dd>
+  </dlentry>
+  <dlentry>
+    <dt>word</dt>
+    <dd>click on</dd>
+  </dlentry>
+  <dlentry>
+    <dt>message</dt>
+    <dd>Use "click" instead of "click on".</dd>
+  </dlentry>
+</dl>
+```
+
+#### avoidDuplicateContent
+
+Detect duplicate content between elements:
+
+```xml
+<dl>
+  <dlhead>
+    <dthd>Rule</dthd>
+    <ddhd>avoidDuplicateContent</ddhd>
+  </dlhead>
+  <dlentry>
+    <dt>matchElement</dt>
+    <dd>shortdesc</dd>
+  </dlentry>
+  <dlentry>
+    <dt>targetElement</dt>
+    <dd>title</dd>
+  </dlentry>
+  <dlentry>
+    <dt>message</dt>
+    <dd>Do not just restate the title in the short description.</dd>
+  </dlentry>
+</dl>
+```
+
+#### avoidEndFragment
+
+Prevent specific ending characters:
+
+```xml
+<dl>
+  <dlhead>
+    <dthd>Rule</dthd>
+    <ddhd>avoidEndFragment</ddhd>
+  </dlhead>
+  <dlentry>
+    <dt>element</dt>
+    <dd>p</dd>
+  </dlentry>
+  <dlentry>
+    <dt>fragment</dt>
+    <dd>:</dd>
+  </dlentry>
+  <dlentry>
+    <dt>message</dt>
+    <dd>Do not end paragraphs with colons; use proper list markup instead.</dd>
+  </dlentry>
+</dl>
+```
+
+## Multiple Rules in One Topic
+
+You can define multiple rules in a single business rules section:
+
+```xml
+<section audience="rules">
+  <title>Business Rules</title>
+  
+  <p>We restrict the title to contain only 'ph' elements and text:</p>
+  <dl>
+    <dlhead>
+      <dthd>Rule</dthd>
+      <ddhd>restrictChildrenElements</ddhd>
+    </dlhead>
+    <dlentry>
+      <dt>parentElement</dt>
+      <dd>title</dd>
+    </dlentry>
+    <dlentry>
+      <dt>allowedChildren</dt>
+      <dd>ph</dd>
+    </dlentry>
+    <dlentry>
+      <dt>message</dt>
+      <dd>Only "ph" is allowed within a title element.</dd>
+    </dlentry>
+  </dl>
+  
+  <p>We also check that titles do not exceed 8 words:</p>
+  <dl>
+    <dlhead>
+      <dthd>Rule</dthd>
+      <ddhd>restrictWords</ddhd>
+    </dlhead>
+    <dlentry>
+      <dt>parentElement</dt>
+      <dd>title</dd>
+    </dlentry>
+    <dlentry>
+      <dt>minWords</dt>
+      <dd>1</dd>
+    </dlentry>
+    <dlentry>
+      <dt>maxWords</dt>
+      <dd>8</dd>
+    </dlentry>
+    <dlentry>
+      <dt>message</dt>
+      <dd>Keep titles between 1 and 8 words.</dd>
+    </dlentry>
+  </dl>
+</section>
+```
+
+<Warning>
+Each `<dl>` element defines one rule instance. Add explanatory text in `<p>` elements between rules to document what each rule enforces.
+</Warning>
+
+## How Rules Are Processed
+
+When you generate the Schematron schema:
+
+1. The `gen-rules.xsl` script scans all topics in your style guide
+2. It finds all `<section audience="rules">` sections
+3. For each `<dl>` element, it instantiates the abstract pattern from `library.sch`
+4. Parameters from `<dlentry>` elements are passed to the pattern
+5. A link back to the style guide topic is automatically added
+6. The compiled rules are output to `info-model/rules/rules.sch`
+
+## Real-World Example
+
+From `info-model/c_TaskStructure.dita`:
+
+```xml
+<section audience="rules">
+  <title>Business rules</title>
+  <p>Require different elements that are optional in the DTD:</p>
+  
+  <dl>
+    <dlhead>
+      <dthd>Rule</dthd>
+      <ddhd>recommendElementInParent</ddhd>
+    </dlhead>
+    <dlentry>
+      <dt>parent</dt>
+      <dd>task</dd>
+    </dlentry>
+    <dlentry>
+      <dt>element</dt>
+      <dd>shortdesc</dd>
+    </dlentry>
+    <dlentry>
+      <dt>message</dt>
+      <dd>Short description is required for tasks.</dd>
+    </dlentry>
+  </dl>
+  
+  <dl>
+    <dlhead>
+      <dthd>Rule</dthd>
+      <ddhd>recommendElementInParent</ddhd>
+    </dlhead>
+    <dlentry>
+      <dt>parent</dt>
+      <dd>taskbody</dd>
+    </dlentry>
+    <dlentry>
+      <dt>element</dt>
+      <dd>steps</dd>
+    </dlentry>
+    <dlentry>
+      <dt>message</dt>
+      <dd>A set of ordered steps is required for tasks.</dd>
+    </dlentry>
+  </dl>
+</section>
+```
+
+This enforces that:
+- Task topics must include a `<shortdesc>` element
+- Task bodies must include a `<steps>` element
+
+Both rules link back to this topic when triggered.
+
+## Best Practices
+
+- **Write clear messages** - Authors see these when rules are violated; make them actionable
+- **Document the rationale** - Add prose explaining why the rule exists before the `<dl>` element
+- **Test rules** - Validate sample content to ensure rules work as expected
+- **Don't over-constrain** - Focus on rules that improve quality, not arbitrary restrictions
+- **Use appropriate severity** - The library uses `role="warn"` for most rules; adjust if needed
+
+## Next Steps
+
+- [Annotate topics](/guides/annotating-topics) to make them discoverable
+- [Generate the Schematron schema](/guides/generating-deliverables) from your rules
+- [Create custom rule patterns](/advanced/custom-rules) for complex validation scenarios

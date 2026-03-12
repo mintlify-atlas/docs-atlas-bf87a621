@@ -1,0 +1,498 @@
+---
+title: 'Library Patterns'
+description: 'Abstract Schematron patterns for style guide validation'
+icon: 'book'
+---
+
+The Schematron library (`library.sch`) provides reusable abstract patterns for validating DITA content against style guide rules. These patterns can be instantiated with specific parameters to enforce your organization's writing standards.
+
+## Content Validation Patterns
+
+<Accordion title="avoidWordInElement" icon="ban">
+
+Warns when a specific word or phrase appears inside designated elements. The check is case-insensitive.
+
+### Parameters
+
+<ParamField path="element" type="string" required>
+  The element(s) to check. Separate multiple elements with `|` (e.g., `title|p`).
+</ParamField>
+
+<ParamField path="word" type="string" required>
+  The word or phrase to detect and flag.
+</ParamField>
+
+<ParamField path="message" type="string" required>
+  The message displayed to users when the word is found.
+</ParamField>
+
+### Example
+
+```xml
+<pattern is-a="avoidWordInElement">
+  <param name="element" value="title|shortdesc"/>
+  <param name="word" value="click"/>
+  <param name="message" value="Avoid using 'click' in titles or short descriptions."/>
+</pattern>
+```
+
+### Implementation
+
+The pattern uses a case-insensitive regex to match the word as a complete token (surrounded by whitespace or at string boundaries).
+
+</Accordion>
+
+<Accordion title="avoidEndFragment" icon="text-slash">
+
+Warns when an element ends with a specific fragment or character.
+
+### Parameters
+
+<ParamField path="element" type="string" required>
+  The element to check for ending fragments.
+</ParamField>
+
+<ParamField path="fragment" type="string" required>
+  The text fragment that should not appear at the end.
+</ParamField>
+
+<ParamField path="message" type="string" required>
+  The message displayed when the fragment is found at the end.
+</ParamField>
+
+### Example
+
+```xml
+<pattern is-a="avoidEndFragment">
+  <param name="element" value="choice"/>
+  <param name="fragment" value=" or"/>
+  <param name="message" value="Do not insert the word 'or' between choices"/>
+</pattern>
+```
+
+### Implementation
+
+Uses `ends-with()` on normalized text to check the final characters.
+
+</Accordion>
+
+<Accordion title="avoidAttributeInElement" icon="at">
+
+Warns when a forbidden attribute appears in a specified element.
+
+### Parameters
+
+<ParamField path="element" type="string" required>
+  The element to check for the attribute.
+</ParamField>
+
+<ParamField path="attribute" type="string" required>
+  The attribute name that should not be used.
+</ParamField>
+
+<ParamField path="message" type="string" required>
+  The message displayed when the attribute is found.
+</ParamField>
+
+### Example
+
+```xml
+<pattern is-a="avoidAttributeInElement">
+  <param name="element" value="shortdesc"/>
+  <param name="attribute" value="conref"/>
+  <param name="message" value="Short descriptions should not use content references."/>
+</pattern>
+```
+
+### Implementation
+
+Tests for the absence of the specified attribute on the target element.
+
+</Accordion>
+
+## Structure Recommendation Patterns
+
+<Accordion title="recommendElementInParent" icon="sitemap">
+
+Recommends including an optional child element within a parent element.
+
+### Parameters
+
+<ParamField path="parent" type="string" required>
+  The parent element to check.
+</ParamField>
+
+<ParamField path="element" type="string" required>
+  The child element that should be present.
+</ParamField>
+
+<ParamField path="message" type="string" required>
+  The message displayed when the element is missing.
+</ParamField>
+
+### Example
+
+```xml
+<pattern is-a="recommendElementInParent">
+  <param name="parent" value="task"/>
+  <param name="element" value="prolog"/>
+  <param name="message" value="A prolog is required for each task."/>
+</pattern>
+```
+
+### Implementation
+
+Checks for the existence of the child element within the parent context.
+
+</Accordion>
+
+<Accordion title="requireContentAfterElement" icon="arrow-right">
+
+Validates that text content exists after a specified element.
+
+### Parameters
+
+<ParamField path="element" type="string" required>
+  The reference element to check.
+</ParamField>
+
+<ParamField path="message" type="string" required>
+  The message displayed when no content follows the element.
+</ParamField>
+
+### Example
+
+```xml
+<pattern is-a="requireContentAfterElement">
+  <param name="element" value="shortdesc"/>
+  <param name="message" value="Avoid topics with only a short description."/>
+</pattern>
+```
+
+### Implementation
+
+Uses the `following::text()` axis to verify non-empty text exists after the element.
+
+</Accordion>
+
+## Length Restriction Patterns
+
+<Accordion title="restrictWords" icon="hashtag">
+
+Enforces word count limits on element content.
+
+### Parameters
+
+<ParamField path="parentElement" type="string" required>
+  The element whose words will be counted.
+</ParamField>
+
+<ParamField path="minWords" type="number" required>
+  Minimum acceptable word count.
+</ParamField>
+
+<ParamField path="maxWords" type="number" required>
+  Maximum acceptable word count.
+</ParamField>
+
+<ParamField path="message" type="string" required>
+  Additional message displayed when limits are violated.
+</ParamField>
+
+### Example
+
+```xml
+<pattern is-a="restrictWords">
+  <param name="parentElement" value="title"/>
+  <param name="minWords" value="1"/>
+  <param name="maxWords" value="8"/>
+  <param name="message" value="Keep titles between 1 and 8 words."/>
+</pattern>
+```
+
+### Implementation
+
+Tokenizes normalized text by spaces and counts the resulting tokens. Displays the actual word count in the validation message.
+
+</Accordion>
+
+<Accordion title="restrictCharacters" icon="text-width">
+
+Enforces character count limits on element content.
+
+### Parameters
+
+<ParamField path="parentElement" type="string" required>
+  The element whose characters will be counted.
+</ParamField>
+
+<ParamField path="minChars" type="number" required>
+  Minimum acceptable character count.
+</ParamField>
+
+<ParamField path="maxChars" type="number" required>
+  Maximum acceptable character count.
+</ParamField>
+
+<ParamField path="normalize" type="string">
+  Set to `"true"`, `"true()"`, or `"yes"` to normalize whitespace before counting.
+</ParamField>
+
+<ParamField path="message" type="string" required>
+  Additional message displayed when limits are violated.
+</ParamField>
+
+### Example
+
+```xml
+<pattern is-a="restrictCharacters">
+  <param name="parentElement" value="shortdesc"/>
+  <param name="minChars" value="50"/>
+  <param name="maxChars" value="250"/>
+  <param name="normalize" value="true"/>
+  <param name="message" value="Short descriptions must be 50-250 characters."/>
+</pattern>
+```
+
+### Implementation
+
+Counts characters using `string-length()`, optionally normalizing whitespace first. The validation message includes the actual character count.
+
+</Accordion>
+
+## Structural Constraint Patterns
+
+<Accordion title="restrictNesting" icon="layer-group">
+
+Limits the nesting depth of an element within itself.
+
+### Parameters
+
+<ParamField path="element" type="string" required>
+  The element to check for nesting levels.
+</ParamField>
+
+<ParamField path="maxNestingLevel" type="number" required>
+  Maximum number of same-named ancestors allowed.
+</ParamField>
+
+<ParamField path="message" type="string" required>
+  The message displayed when nesting exceeds the limit.
+</ParamField>
+
+### Example
+
+```xml
+<pattern is-a="restrictNesting">
+  <param name="element" value="ul"/>
+  <param name="maxNestingLevel" value="3"/>
+  <param name="message" value="Lists should not be nested more than 3 levels deep."/>
+</pattern>
+```
+
+### Implementation
+
+Counts `ancestor::` elements with the same name as the current element.
+
+</Accordion>
+
+<Accordion title="restrictNumberOfChildren" icon="list-ol">
+
+Enforces minimum and maximum counts for specific child elements.
+
+### Parameters
+
+<ParamField path="parentElement" type="string" required>
+  The parent element to check.
+</ParamField>
+
+<ParamField path="element" type="string" required>
+  The child element type to count.
+</ParamField>
+
+<ParamField path="min" type="number" required>
+  Minimum number of child elements required.
+</ParamField>
+
+<ParamField path="max" type="number" required>
+  Maximum number of child elements allowed.
+</ParamField>
+
+<ParamField path="message" type="string" required>
+  Additional message displayed when limits are violated.
+</ParamField>
+
+### Example
+
+```xml
+<pattern is-a="restrictNumberOfChildren">
+  <param name="parentElement" value="steps"/>
+  <param name="element" value="step"/>
+  <param name="min" value="2"/>
+  <param name="max" value="10"/>
+  <param name="message" value="Tasks should have 2-10 steps."/>
+</pattern>
+```
+
+### Implementation
+
+Counts child elements and displays the actual count in violation messages.
+
+</Accordion>
+
+<Accordion title="restrictChildrenElements" icon="filter">
+
+Restricts child elements to an allowed list.
+
+### Parameters
+
+<ParamField path="parentElement" type="string" required>
+  The parent element to check.
+</ParamField>
+
+<ParamField path="allowedChildren" type="string" required>
+  Comma-separated list of allowed child element names.
+</ParamField>
+
+<ParamField path="message" type="string" required>
+  Additional message displayed when disallowed elements are found.
+</ParamField>
+
+### Example
+
+```xml
+<pattern is-a="restrictChildrenElements">
+  <param name="parentElement" value="title"/>
+  <param name="allowedChildren" value="ph"/>
+  <param name="message" value="Only 'ph' is allowed within title elements."/>
+</pattern>
+```
+
+### Implementation
+
+Validates each child element's local name against the tokenized allowed list.
+
+</Accordion>
+
+<Accordion title="avoidDuplicateContent" icon="copy">
+
+Warns when an element has the same content as a sibling element.
+
+### Parameters
+
+<ParamField path="matchElement" type="string" required>
+  The element to check for duplication.
+</ParamField>
+
+<ParamField path="targetElement" type="string" required>
+  The sibling element type to compare against.
+</ParamField>
+
+<ParamField path="message" type="string" required>
+  The message displayed when duplicate content is found.
+</ParamField>
+
+### Example
+
+```xml
+<pattern is-a="avoidDuplicateContent">
+  <param name="matchElement" value="shortdesc"/>
+  <param name="targetElement" value="title"/>
+  <param name="message" value="Do not restate the title in the short description."/>
+</pattern>
+```
+
+### Implementation
+
+Compares normalized content with the first preceding or following sibling of the target type.
+
+</Accordion>
+
+## DITA-Specific Patterns
+
+<Accordion title="dita-allowedElementsForClass" icon="dita">
+
+Validates element names for elements matching a DITA class attribute value.
+
+### Parameters
+
+<ParamField path="elementClass" type="string" required>
+  The DITA class value to match (e.g., `topic/topic`).
+</ParamField>
+
+<ParamField path="allowedElementNames" type="string" required>
+  Comma-separated list of allowed element names.
+</ParamField>
+
+<ParamField path="message" type="string" required>
+  Additional message displayed when an element name is not allowed.
+</ParamField>
+
+### Example
+
+```xml
+<pattern is-a="dita-allowedElementsForClass">
+  <param name="elementClass" value="topic/topic"/>
+  <param name="allowedElementNames" value="task, reference, concept, glossentry"/>
+  <param name="message" value="This is not an allowed topic type."/>
+</pattern>
+```
+
+### Implementation
+
+Matches elements by DITA `@class` attribute and validates the local name against the allowed list.
+
+</Accordion>
+
+<Accordion title="dita-allowOnlyBlockElements" icon="square">
+
+Ensures a DITA element contains only block-level elements (no inline elements or direct text).
+
+### Parameters
+
+<ParamField path="element" type="string" required>
+  The DITA element that must contain only block elements.
+</ParamField>
+
+<ParamField path="message" type="string" required>
+  The message displayed when inline content or text is found.
+</ParamField>
+
+### Example
+
+```xml
+<pattern is-a="dita-allowOnlyBlockElements">
+  <param name="element" value="context"/>
+  <param name="message" value="Use block elements like 'p' in context, not direct text."/>
+</pattern>
+```
+
+### Implementation
+
+Checks for direct text content and validates child elements against a `blockElements.xml` reference file containing DITA block element classes.
+
+</Accordion>
+
+## Pattern Usage
+
+All patterns in the library:
+
+- Use `role="warn"` for advisory messages rather than errors
+- Include Schematron Quick Fix (`sqf:fix`) references for automated corrections
+- Support XPath 2.0 features via `queryBinding="xslt2"`
+- Are abstract patterns requiring instantiation with concrete parameters
+
+<Note>
+Quick fixes are defined in a separate `quickFix-library.xml` file referenced by the main rules schema.
+</Note>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Rule Parameters" icon="sliders" href="/api/rule-parameters">
+    Learn parameter syntax and instantiation
+  </Card>
+  <Card title="Defining Rules" icon="pen-ruler" href="/guides/defining-rules">
+    Create custom style guide rules
+  </Card>
+</CardGroup>

@@ -1,0 +1,565 @@
+---
+title: 'Sample Style Guide'
+description: 'Reference DITA style guide from Comtech Services'
+---
+
+The DIM project includes a complete sample style guide that demonstrates how to create an intelligent, enforceable style guide using DITA and embedded Schematron rules.
+
+## Overview
+
+The sample style guide was contributed by [Comtech Services](http://www.comtech-serv.com) and provides comprehensive authoring guidelines for DITA content. It serves as both a functional style guide and a template for creating your own DIM-enabled documentation standards.
+
+<Note>
+This style guide can be used as a starting point for your own organization's style guide, or you can integrate DIM features into your existing DITA-based documentation.
+</Note>
+
+## Location
+
+The style guide is located in:
+```
+info-model/
+```
+
+### Key Files
+
+- **styleguide.ditamap** - Main bookmap organizing all style guide topics
+- **c_*.dita** - Concept topics covering different authoring aspects
+- **rules/** - Generated Schematron and configuration files
+
+## Structure
+
+The style guide is organized as a DITA bookmap with the following structure:
+
+<Accordion title="Table of Contents">
+
+**Front Matter**
+- Company name key definition
+- Table of contents
+
+**Chapter 1: Information Types**
+- Beginning a Topic
+  - Titling Topics
+  - Writing Short Descriptions
+- Tasks
+  - Task Structure
+  - Task Elements
+  - Writing Task Topics
+
+**Chapter 2: Block Elements**
+- Creating Lists
+
+**Chapter 3: Inline Elements**
+- User Interface Elements
+
+**Chapter 4: Maps and Bookmaps**
+- Maps
+  - Map Structure
+  - Map Elements
+  - Map Attributes
+  - Creating Maps
+
+**Chapter 5: Linking Strategies**
+- Relationship Tables
+
+**Chapter 6: Attributes**
+- Display Attributes
+
+**Chapter 7: Reuse Strategy**
+- Writing for Reuse
+- Common Content Overview
+- Reusing Elements Through Collection Files
+
+**Chapter 8: Content Management**
+- File Naming Convention
+
+</Accordion>
+
+## Sample Topics
+
+### Titling Topics (c_TitlingTopics.dita)
+
+A comprehensive guide to creating effective titles in DITA.
+
+<Accordion title="Topic Structure">
+
+**Content Guidelines**:
+- Use specific, descriptive language
+- Limit titles to 8 words or less
+- Use title case capitalization
+- Avoid generic terms like "Introduction"
+- Include context-specific information
+
+**Information Type Guidelines**:
+- **Task titles**: Use imperative verb forms
+- **Concept titles**: Use noun phrases
+- **Reference titles**: Include the referenced item name
+
+**Embedded Rules**:
+
+1. **Restrict Children**: Only `ph` elements allowed in titles
+   ```xml
+   <dl>
+     <dlhead>
+       <dthd>Rule</dthd>
+       <ddhd>restrictChildrenElements</ddhd>
+     </dlhead>
+     <dlentry>
+       <dt>parentElement</dt>
+       <dd>title</dd>
+     </dlentry>
+     <dlentry>
+       <dt>allowedChildren</dt>
+       <dd>ph</dd>
+     </dlentry>
+     <dlentry>
+       <dt>message</dt>
+       <dd>Only "ph" is allowed within a title element.</dd>
+     </dlentry>
+   </dl>
+   ```
+
+2. **Word Count**: Titles should be 1-8 words
+   ```xml
+   <dl>
+     <dlhead>
+       <dthd>Rule</dthd>
+       <ddhd>restrictWords</ddhd>
+     </dlhead>
+     <dlentry>
+       <dt>parentElement</dt>
+       <dd>title</dd>
+     </dlentry>
+     <dlentry>
+       <dt>minWords</dt>
+       <dd>1</dd>
+     </dlentry>
+     <dlentry>
+       <dt>maxWords</dt>
+       <dd>8</dd>
+     </dlentry>
+     <dlentry>
+       <dt>message</dt>
+       <dd>Keep titles between 1 and 8 words.</dd>
+     </dlentry>
+   </dl>
+   ```
+
+</Accordion>
+
+### Task Authoring Guidelines (c_TaskAuthoringGuidelines.dita)
+
+Guidelines for writing effective task topics.
+
+<Accordion title="Topic Highlights">
+
+**Content**:
+- Task structure requirements
+- Step writing guidelines
+- Command vs. step decisions
+- Substep usage
+
+**Example Rules**:
+- Minimum/maximum step counts
+- Required elements (context, result)
+- Prohibited constructs
+
+</Accordion>
+
+### Creating Lists (c_CreatingLists.dita)
+
+Comprehensive guidance on using DITA list elements.
+
+<Accordion title="List Types Covered">
+
+**List Elements**:
+- **ul** - Unordered lists
+- **ol** - Ordered lists  
+- **dl** - Definition lists
+- **sl** - Simple lists
+- **parml** - Parameter lists
+
+**Guidelines Include**:
+- When to use each list type
+- Nesting restrictions
+- Punctuation rules
+- Formatting standards
+
+**Embedded Rules**:
+- Restrict list nesting depth
+- Enforce consistent list item structure
+- Validate parameter list usage
+
+</Accordion>
+
+## Metadata Annotations
+
+Topics include metadata linking them to DITA elements and attributes:
+
+### Example Metadata
+
+```xml
+<prolog>
+  <metadata>
+    <data audience="styleguide" name="title" value="Titling Topics"/>
+    <data audience="styleguide" name="shortdesc" value="Writing Short Descriptions"/>
+    <data audience="styleguide" name="@conref" value="Content Reuse"/>
+  </metadata>
+</prolog>
+```
+
+This metadata enables:
+- Context-sensitive help in Oxygen XML Editor
+- Element/attribute documentation tooltips
+- Direct links from editing context to style guide
+
+## Rules Coverage
+
+The sample style guide demonstrates these patterns from the rule library:
+
+<CardGroup cols={2}>
+  <Card title="Content Rules" icon="file-lines">
+    - restrictWords
+    - restrictCharacters
+    - avoidWordInElement
+    - avoidEndFragment
+  </Card>
+  
+  <Card title="Structure Rules" icon="sitemap">
+    - restrictChildrenElements
+    - restrictNesting
+    - recommendElementInParent
+    - restrictNumberOfChildren
+  </Card>
+  
+  <Card title="Attribute Rules" icon="at">
+    - avoidAttributeInElement
+  </Card>
+  
+  <Card title="DITA Rules" icon="code">
+    - dita-allowedElementsForClass
+    - dita-allowOnlyBlockElements
+  </Card>
+</CardGroup>
+
+## Generated Files
+
+Running the XSLT scripts on the sample style guide generates:
+
+### rules.sch
+
+A complete Schematron schema with all embedded rules instantiated:
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Do not edit this file directly!
+  This file is generated automatically by processing styleguide.ditamap
+-->
+<schema xmlns="http://purl.oclc.org/dsdl/schematron" queryBinding="xslt2">
+  
+  <!-- Library pattern includes -->
+  <include href="library.sch#avoidWordInElement"/>
+  <include href="library.sch#restrictWords"/>
+  <!-- ... more includes ... -->
+  
+  <include href="quickFix-library.xml"/>
+  
+  <!-- Pattern instantiations from topics -->
+  <!--Generated from info-model/c_TitlingTopics.dita.-->
+  <pattern is-a="restrictChildrenElements" 
+           see="http://example.com/styleguide/webhelp/info-model/c_TitlingTopics.html">
+    <param name="parentElement" value="title"/>
+    <param name="allowedChildren" value="ph"/>
+    <param name="message" value="Only 'ph' is allowed within a title element."/>
+  </pattern>
+  
+  <!-- ... more patterns ... -->
+</schema>
+```
+
+### contentCompletionElementsMap.xml
+
+Element and attribute documentation mappings:
+
+```xml
+<contentCompletionElementsMap
+  redirectURLPrefix="http://www.oxygenxml.com/redirect-url.php?url="
+  htmlContentFilterStylesheet="contentFilter.xsl">
+  
+  <mappingGroup xml:base="http://example.com/styleguide/webhelp/">
+    <mapping elementName="title" 
+             path="info-model/c_TitlingTopics.html" 
+             type="link" 
+             linkText="Titling Topics"/>
+    <mapping elementName="shortdesc" 
+             path="info-model/c_WritingShortDescriptions.html" 
+             type="link" 
+             linkText="Writing Short Descriptions"/>
+    <!-- ... more mappings ... -->
+  </mappingGroup>
+</contentCompletionElementsMap>
+```
+
+## Customization Guide
+
+### Using as a Template
+
+<Steps>
+  <Step title="Clone or Copy">
+    Start with the sample style guide as a foundation:
+    ```bash
+    cp -r info-model my-styleguide
+    ```
+  </Step>
+  
+  <Step title="Update Content">
+    - Modify existing topics to match your standards
+    - Add new topics for organization-specific guidelines
+    - Update the bookmap structure
+  </Step>
+  
+  <Step title="Adjust Rules">
+    - Change parameter values to match your requirements
+    - Add new rule instantiations
+    - Remove rules that don't apply
+  </Step>
+  
+  <Step title="Update Metadata">
+    - Add metadata annotations for your elements
+    - Link attributes to your documentation
+    - Update company name and branding
+  </Step>
+  
+  <Step title="Generate and Test">
+    - Run gen-rules.xsl and gen-mappings.xsl
+    - Publish to WebHelp
+    - Test validation with sample content
+  </Step>
+</Steps>
+
+### Integrating with Existing Style Guides
+
+If you have an existing DITA-based style guide:
+
+<Steps>
+  <Step title="Add Rules Sections">
+    Insert `section[@audience='rules']` elements where you want to enforce guidelines.
+  </Step>
+  
+  <Step title="Add Metadata">
+    Include `prolog/metadata` with `data[@audience='styleguide']` annotations.
+  </Step>
+  
+  <Step title="Reference Library">
+    Copy `library.sch` to your project and reference it in the XSLT scripts.
+  </Step>
+  
+  <Step title="Generate">
+    Run the generation scripts on your existing map.
+  </Step>
+</Steps>
+
+## Key Features Demonstrated
+
+### 1. Dual-Purpose Content
+
+Topics serve as both:
+- **Human-readable documentation** (published to WebHelp)
+- **Machine-processable rules** (extracted to Schematron)
+
+### 2. Traceability
+
+Every validation message links back to its source:
+```xml
+<pattern is-a="..." see="http://example.com/styleguide/.../topic.html">
+```
+
+Authors can click validation messages to view the full guideline context.
+
+### 3. Context-Sensitive Help
+
+Metadata annotations enable IDE integration:
+- Hover over an element → see style guide link
+- Press F1 → open relevant style guide topic
+- Content completion → shows guidelines inline
+
+### 4. Centralized Maintenance
+
+Update guidelines in one place:
+- Edit the DITA topic
+- Regenerate rules.sch
+- Rules automatically reflect the changes
+
+### 5. Validation and Quick Fixes
+
+Rules include Schematron Quick Fix references:
+```xml
+<assert test="..." sqf:fix="restrictWords_setNew">
+  Keep titles between 1 and 8 words.
+</assert>
+```
+
+Compatible editors offer one-click remediation.
+
+## Business Value
+
+The sample style guide demonstrates:
+
+<CardGroup cols={2}>
+  <Card title="Consistency" icon="check-double">
+    Automated enforcement ensures all content follows the same rules
+  </Card>
+  
+  <Card title="Quality" icon="star">
+    Catch issues during authoring, not during review
+  </Card>
+  
+  <Card title="Training" icon="graduation-cap">
+    Integrated documentation teaches as authors write
+  </Card>
+  
+  <Card title="Efficiency" icon="bolt">
+    Reduce review cycles and rework
+  </Card>
+</CardGroup>
+
+## Publishing the Style Guide
+
+### Generate WebHelp
+
+Use the pre-configured transformation scenario:
+
+<Steps>
+  <Step title="Open Map">
+    Open `styleguide.ditamap` in Oxygen XML Editor.
+  </Step>
+  
+  <Step title="Select Scenario">
+    Choose **Generate Style Guide** from the transformation scenarios.
+  </Step>
+  
+  <Step title="Run">
+    Execute the scenario to generate WebHelp output to `info-model/styleguide/`.
+  </Step>
+  
+  <Step title="Deploy">
+    Deploy the WebHelp output to a web server or share locally.
+  </Step>
+</Steps>
+
+### Update URLs
+
+After publishing, update the URL prefix in:
+
+1. **gen-rules.xsl**:
+   ```xml
+   <xsl:variable name="target">
+     <xsl:text>http://your-server.com/styleguide/webhelp/</xsl:text>
+     <xsl:value-of select="replace($origin, '.dita', '.html')"/>
+   </xsl:variable>
+   ```
+
+2. **gen-mappings.xsl**:
+   ```xml
+   <mappingGroup xml:base="http://your-server.com/styleguide/webhelp/">
+   ```
+
+3. **Catalog file** (`info-model/rules/catalog.xml`):
+   ```xml
+   <rewriteURI uriStartString="http://example.com/styleguide/webhelp/" 
+               rewritePrefix="http://your-server.com/styleguide/webhelp/"/>
+   ```
+
+## Example Workflow
+
+A typical workflow using the sample style guide:
+
+<Steps>
+  <Step title="Author Creates Content">
+    Author writes a DITA topic in Oxygen using the DITA framework.
+  </Step>
+  
+  <Step title="Validation Runs">
+    The `rules.sch` schema validates content automatically.
+  </Step>
+  
+  <Step title="Issue Detected">
+    Validation error: "Keep titles between 1 and 8 words. You have 12 words."
+  </Step>
+  
+  <Step title="Author Clicks Link">
+    Author clicks the error message link, opening the Titling Topics style guide page.
+  </Step>
+  
+  <Step title="Author Reads Guidelines">
+    Author reviews the complete guideline and examples.
+  </Step>
+  
+  <Step title="Author Fixes Issue">
+    Author revises the title to meet the 8-word limit.
+  </Step>
+  
+  <Step title="Validation Passes">
+    Content now validates successfully.
+  </Step>
+</Steps>
+
+## Extending the Sample
+
+Add new topics following the established patterns:
+
+### Template for New Topics
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE concept PUBLIC "-//OASIS//DTD DITA Concept//EN" "concept.dtd">
+<concept id="new_topic">
+  <title>Your Topic Title</title>
+  
+  <prolog>
+    <metadata>
+      <!-- Add metadata links -->
+      <data audience="styleguide" name="element-name" 
+            value="Display text for link"/>
+    </metadata>
+  </prolog>
+  
+  <conbody>
+    <p>Your content guidelines here...</p>
+    
+    <!-- Add rules section if needed -->
+    <section audience="rules">
+      <title>Business Rules</title>
+      <p>Optional description of the rules.</p>
+      
+      <dl>
+        <dlhead>
+          <dthd>Rule</dthd>
+          <ddhd>pattern-name</ddhd>
+        </dlhead>
+        <dlentry>
+          <dt>parameter1</dt>
+          <dd>value1</dd>
+        </dlentry>
+        <!-- More parameters -->
+      </dl>
+    </section>
+  </conbody>
+</concept>
+```
+
+## Related Resources
+
+<CardGroup cols={3}>
+  <Card title="Rule Library" icon="book" href="/components/rule-library">
+    Available patterns for your rules
+  </Card>
+  
+  <Card title="XSLT Scripts" icon="code" href="/components/xslt-scripts">
+    Generate rules from your topics
+  </Card>
+  
+  <Card title="Oxygen Framework" icon="wrench" href="/components/oxygen-framework">
+    Author mode enhancements for rule creation
+  </Card>
+</CardGroup>

@@ -1,0 +1,329 @@
+---
+title: UI Components
+description: Dialog components for business rule selection in Oxygen XML Author
+---
+
+The DIM framework provides platform-specific dialog components for selecting business rules with search and filtering capabilities.
+
+## ECBusinessRuleSelectDialog
+
+Eclipse SWT-based dialog for selecting business rules in the Oxygen XML Eclipse plugin.
+
+### Constructor
+
+```java
+public ECBusinessRuleSelectDialog(Shell parentFrame)
+```
+
+<ParamField path="parentFrame" type="Shell" required>
+  The parent SWT Shell for the dialog
+</ParamField>
+
+Creates a resizable, modal dialog with the title "Business Rule".
+
+### Methods
+
+#### selectRule(BusinessRuleLibrary)
+
+Displays the dialog and returns the user's selection.
+
+<ParamField path="businessRuleLibrary" type="BusinessRuleLibrary" required>
+  The library of rules to display
+</ParamField>
+
+<ResponseField name="return" type="BusinessRule">
+  The selected rule, or `null` if cancelled
+</ResponseField>
+
+```java
+public BusinessRule selectRule(BusinessRuleLibrary businessRuleLibrary)
+```
+
+### Features
+
+- **Search field**: Real-time filtering with 400ms debounce
+- **Multi-pattern search**: Use commas to separate multiple search patterns
+- **Rule list**: Displays filtered rule names
+- **Description panel**: Shows HTML documentation for the selected rule
+- **Keyboard navigation**: Arrow keys to navigate, Enter to select
+
+### UI Layout
+
+```
+┌─────────────────────────────────────────┐
+│ Search for business rule                │
+├──────────────┬──────────────────────────┤
+│ Rule List    │ Description Panel        │
+│              │                          │
+│ rule-1       │ <HTML description>       │
+│ rule-2       │                          │
+│ rule-3       │                          │
+│              │                          │
+└──────────────┴──────────────────────────┘
+```
+
+### Search Behavior
+
+The search supports multiple patterns separated by commas. Each pattern can contain multiple words:
+
+- `title` - Matches rules containing "title" in name or description
+- `title, section` - Matches rules containing either "title" OR "section"
+- `section title` - Matches rules containing both "section" AND "title"
+
+### Example
+
+```java
+Shell shell = (Shell) authorAccess.getWorkspaceAccess().getParentFrame();
+ECBusinessRuleSelectDialog dialog = new ECBusinessRuleSelectDialog(shell);
+
+BusinessRuleLibrary library = BusinessRuleRepository.getInstance()
+    .loadLibrary(authorAccess.getXMLUtilAccess(), libraryURL);
+
+BusinessRule selected = dialog.selectRule(library);
+
+if (selected != null) {
+    System.out.println("User selected: " + selected.getRuleName());
+    
+    for (BusinessRuleParam param : selected.getParams()) {
+        System.out.println("  Parameter: " + param.getName());
+    }
+}
+```
+
+## SABusinessRuleSelectDialog
+
+Swing-based dialog for selecting business rules in the standalone Oxygen XML Author application.
+
+### Constructor
+
+```java
+public SABusinessRuleSelectDialog(JFrame parentFrame)
+```
+
+<ParamField path="parentFrame" type="JFrame" required>
+  The parent JFrame for the dialog
+</ParamField>
+
+Creates a modal dialog with the title "Business Rule". Remembers its last position across invocations.
+
+### Methods
+
+#### selectRule(BusinessRuleLibrary)
+
+Displays the dialog and returns the user's selection.
+
+<ParamField path="businessRuleLibrary" type="BusinessRuleLibrary" required>
+  The library of rules to display
+</ParamField>
+
+<ResponseField name="return" type="BusinessRule">
+  The selected rule, or `null` if cancelled
+</ResponseField>
+
+```java
+public BusinessRule selectRule(BusinessRuleLibrary businessRuleLibrary)
+```
+
+### Features
+
+- **Search field**: Real-time filtering with 400ms debounce and placeholder hint
+- **Multi-pattern search**: Use commas to separate multiple search patterns
+- **Rule list**: JList displaying filtered rule names
+- **Description panel**: JEditorPane showing HTML documentation
+- **Double-click to select**: Double-clicking a rule confirms the selection
+- **Position memory**: Remembers the last dialog position
+
+### UI Layout
+
+```
+┌─────────────────────────────────────────┐
+│ Search for business rule                │
+├──────────────┬──────────────────────────┤
+│ Rule List    │ Description Panel        │
+│              │                          │
+│ rule-1       │ <HTML description>       │
+│ rule-2       │                          │
+│ rule-3       │                          │
+│              │                          │
+│              │                          │
+└──────────────┴──────────────────────────┘
+        [OK] [Cancel]
+```
+
+### Search Behavior
+
+Identical to `ECBusinessRuleSelectDialog`:
+
+- Multiple comma-separated patterns (OR logic)
+- Multiple space-separated words within a pattern (AND logic)
+- Case-insensitive matching
+- Searches both rule name and description
+
+### Example
+
+```java
+JFrame frame = (JFrame) authorAccess.getWorkspaceAccess().getParentFrame();
+SABusinessRuleSelectDialog dialog = new SABusinessRuleSelectDialog(frame);
+
+BusinessRuleLibrary library = BusinessRuleRepository.getInstance()
+    .loadLibrary(authorAccess.getXMLUtilAccess(), libraryURL);
+
+BusinessRule selected = dialog.selectRule(library);
+
+if (selected != null) {
+    System.out.println("User selected: " + selected.getRuleName());
+    System.out.println("Description: " + selected.getDescription());
+}
+```
+
+## ECFilterText
+
+Abstract Eclipse SWT filter text component with hint text and advanced editing capabilities.
+
+### Constructor
+
+```java
+public ECFilterText(Composite parent, String customFilterHint)
+```
+
+<ParamField path="parent" type="Composite" required>
+  The parent SWT Composite
+</ParamField>
+
+<ParamField path="customFilterHint" type="String" required>
+  The placeholder hint text to display when empty
+</ParamField>
+
+### Abstract Methods
+
+Subclasses must implement:
+
+#### filterWasChanged(String)
+
+Called when the filter text changes (after debouncing if applicable).
+
+<ParamField path="text" type="String" required>
+  The new filter text
+</ParamField>
+
+```java
+protected abstract void filterWasChanged(String text)
+```
+
+### Methods
+
+#### reset()
+
+Resets the field to show the placeholder hint in gray text.
+
+```java
+public void reset()
+```
+
+#### isShowingHint()
+
+<ResponseField name="return" type="boolean">
+  Returns `true` if currently displaying the hint text
+</ResponseField>
+
+```java
+public boolean isShowingHint()
+```
+
+#### setFieldBgColor(Color)
+
+<ParamField path="color" type="Color" required>
+  The background color to set
+</ParamField>
+
+```java
+public void setFieldBgColor(Color color)
+```
+
+#### getAction(String)
+
+Retrieves an updateable action for standard operations (Cut, Copy, Paste, Delete, Undo, Redo).
+
+<ParamField path="id" type="String" required>
+  The action ID (e.g., `ActionFactory.CUT.getId()`)
+</ParamField>
+
+<ResponseField name="return" type="IAction">
+  The action instance
+</ResponseField>
+
+```java
+public IAction getAction(String id)
+```
+
+### Features
+
+- **Placeholder hint**: Shows gray hint text when empty and unfocused
+- **Focus management**: Clears hint on focus, restores on blur if empty
+- **Undo/Redo support**: Full undo/redo stack through SWT SourceViewer
+- **Context menu actions**: Standard Cut, Copy, Paste, Delete operations
+- **Color management**: Automatic color switching between hint and normal text
+
+### Example
+
+```java
+ECFilterText searchField = new ECFilterText(composite, "Search...") {
+    Timer timer = new Timer(false);
+    TimerTask previous = null;
+    
+    @Override
+    protected void filterWasChanged(final String text) {
+        if (previous != null) {
+            previous.cancel();
+        }
+        
+        previous = new TimerTask() {
+            @Override
+            public void run() {
+                Display.getDefault().syncExec(new Runnable() {
+                    @Override
+                    public void run() {
+                        performSearch(text);
+                    }
+                });
+            }
+        };
+        
+        timer.schedule(previous, 400); // 400ms debounce
+    }
+};
+
+searchField.getTextWidget().setToolTipText("Enter search terms");
+```
+
+### Integration
+
+`ECFilterText` is used by `ECBusinessRuleSelectDialog` to provide the search functionality with:
+
+- 400ms debounce to prevent excessive filtering
+- Real-time update of the rule list as user types
+- Automatic focus handling and hint display
+
+## Platform Detection
+
+The `AddBusinessRuleOperation` automatically selects the appropriate dialog based on the platform:
+
+```java
+BusinessRuleSelector businessRuleSelector;
+
+if (authorAccess.getWorkspaceAccess().isStandalone()) {
+    // Standalone Oxygen XML Author
+    businessRuleSelector = new SABusinessRuleSelectDialog(
+        (JFrame) authorAccess.getWorkspaceAccess().getParentFrame()
+    );
+} else {
+    // Oxygen XML Eclipse Plugin
+    businessRuleSelector = new ECBusinessRuleSelectDialog(
+        (Shell) authorAccess.getWorkspaceAccess().getParentFrame()
+    );
+}
+
+BusinessRule selected = businessRuleSelector.selectRule(library);
+```
+
+This ensures the correct UI toolkit (Swing vs SWT) is used for each platform while maintaining a consistent user experience.

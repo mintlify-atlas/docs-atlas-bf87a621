@@ -1,80 +1,451 @@
 ---
-title: "Quickstart"
-description: "Start building awesome documentation in minutes"
+title: Quick Start
+description: Get started with DIM in under 10 minutes - clone, configure, and create your first intelligent style guide rule
 ---
 
-## Get started in three steps
+This guide will walk you through setting up DIM and creating your first enforceable style guide rule. By the end, you'll have a working intelligent style guide that validates DITA content.
 
-Get your documentation site running locally and make your first customization.
+<Note>
+**Time to complete:** Approximately 10 minutes
 
-### Step 1: Set up your local environment
+**Prerequisites:** Git, oXygen XML Editor (recommended), Saxon XSLT processor
+</Note>
 
-<AccordionGroup>
-  <Accordion icon="copy" title="Clone your docs locally">
-    During the onboarding process, you created a GitHub repository with your docs content if you didn't already have one. You can find a link to this repository in your [dashboard](https://dashboard.mintlify.com).
-    
-    To clone the repository locally so that you can make and preview changes to your docs, follow the [Cloning a repository](https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository) guide in the GitHub docs.
-  </Accordion>
-  <Accordion icon="rectangle-terminal" title="Start the preview server">
-    1. Install the Mintlify CLI: `npm i -g mint`
-    2. Navigate to your docs directory and run: `mint dev`
-    3. Open `http://localhost:3000` to see your docs live!
-    
-    <Tip>Your preview updates automatically as you edit files.</Tip>
-  </Accordion>
-</AccordionGroup>
+## Step 1: Clone the Repository
 
-### Step 2: Deploy your changes
+<Steps>
 
-<AccordionGroup>
-  <Accordion icon="github" title="Install our GitHub app">
-    Install the Mintlify GitHub app from your [dashboard](https://dashboard.mintlify.com/settings/organization/github-app).
-    
-    Our GitHub app automatically deploys your changes to your docs site, so you don't need to manage deployments yourself.
-</Accordion>
-<Accordion icon="palette" title="Update your site name and colors">
-    For a first change, let's update the name and colors of your docs site.
+<Step title="Clone DIM from GitHub">
+Clone the DIM repository to your local machine:
 
-    1. Open `docs.json` in your editor.
-    2. Change the `"name"` field to your project name.
-    3. Update the `"colors"` to match your brand.
-    4. Save and see your changes instantly at `http://localhost:3000`.
+```bash
+git clone https://github.com/oxygenxml/dim.git
+cd dim
+```
 
-    <Tip>Try changing the primary color to see an immediate difference!</Tip>
-  </Accordion>
-</AccordionGroup>
+The project structure you'll see:
 
-### Step 3: Go live
+```
+dim/
+├── info-model/              # Style guide content and rules
+│   ├── styleguide.ditamap  # Main DITA map
+│   ├── c_*.dita            # Style guide topics
+│   └── rules/              # Rule library and outputs
+│       ├── library.sch     # Generic rule patterns
+│       └── rules.sch       # Generated validation schema
+├── gen-rules/              # XSLT generation scripts
+│   ├── gen-rules.xsl       # Generates Schematron from topics
+│   └── gen-mappings.xsl    # Generates content completion maps
+└── frameworks/             # oXygen framework extensions
+    └── dim/                # DIM-specific actions and UI
+```
+</Step>
 
-<Accordion icon="rocket" title="Publish your docs">
-  1. Commit and push your changes.
-  2. Your docs will update and be live in moments!
-</Accordion>
+<Step title="Explore the sample style guide">
+DIM includes a complete sample style guide contributed by Comtech Services. Open the style guide map:
 
-## Next steps
+```bash
+# View the main map structure
+cat info-model/styleguide.ditamap
+```
 
-Now that you have your docs running, explore these key features:
+This sample covers:
+- Information types (tasks, concepts, references)
+- Block and inline elements
+- Maps and bookmaps
+- Linking strategies
+- Reuse patterns
+- Naming conventions
+</Step>
+
+</Steps>
+
+## Step 2: Open in oXygen XML Editor
+
+<Steps>
+
+<Step title="Open the DIM project">
+1. Launch oXygen XML Editor
+2. Open **File → Open Project**
+3. Navigate to your cloned `dim` directory
+4. Select `dim.xpr` (the oXygen project file)
+
+<Tip>
+If you don't have oXygen, you can still use DIM by running the XSLT scripts manually with Saxon or another XSLT 2.0 processor. See [Installation](/installation) for details.
+</Tip>
+</Step>
+
+<Step title="Enable the DIM framework">
+1. Open any style guide topic (e.g., `info-model/c_TitlingTopics.dita`)
+2. In the **Styles** dropdown at the bottom of the editor, select **+ DIM**
+
+This activates DIM-specific actions in the toolbar, allowing you to:
+- Add rule sections to topics
+- Annotate topics with metadata
+- Preview generated rules
+</Step>
+
+</Steps>
+
+## Step 3: Create Your First Rule
+
+Let's create a simple rule that warns authors when they use the word "simple" in titles (a common style guide recommendation).
+
+<Steps>
+
+<Step title="Create a new style guide topic">
+For this quickstart, we'll add a rule to an existing topic. Open `info-model/c_TitlingTopics.dita` in oXygen.
+
+You'll see this topic already contains prose about titling guidelines and an existing rules section marked with `audience="rules"`.
+</Step>
+
+<Step title="Add a rule to avoid the word 'simple'">
+Locate the rules section (around line 80-100) that looks like:
+
+```xml
+<section audience="rules">
+  <title>Business Rules</title>
+  <!-- Existing rules here -->
+</section>
+```
+
+Add a new rule by inserting this `<dl>` element before the closing `</section>`:
+
+```xml
+<dl>
+  <dlhead>
+    <dthd>Rule</dthd>
+    <ddhd>avoidWordInElement</ddhd>
+  </dlhead>
+  <dlentry>
+    <dt>element</dt>
+    <dd>title</dd>
+  </dlentry>
+  <dlentry>
+    <dt>word</dt>
+    <dd>simple</dd>
+  </dlentry>
+  <dlentry>
+    <dt>message</dt>
+    <dd>Avoid using 'simple' in titles. Be specific about what makes the topic useful.</dd>
+  </dlentry>
+</dl>
+```
+
+This rule instantiates the `avoidWordInElement` abstract pattern from the library.
+</Step>
+
+<Step title="Understand the rule structure">
+Each rule is a definition list (`<dl>`) with:
+
+- **`<dlhead>`**: Identifies the abstract pattern name from `library.sch`
+  - `<ddhd>`: Pattern name (e.g., `avoidWordInElement`)
+- **`<dlentry>` elements**: Parameters for the pattern
+  - `<dt>`: Parameter name
+  - `<dd>`: Parameter value
+
+<CodeGroup>
+
+```xml Available Rule Patterns
+<!-- Avoid specific words -->
+avoidWordInElement
+
+<!-- Restrict word/character counts -->
+restrictWords
+restrictCharacters
+
+<!-- Control structure -->
+restrictNesting
+restrictChildrenElements
+restrictNumberOfChildren
+
+<!-- Recommend optional elements -->
+recommendElementInParent
+
+<!-- Avoid attributes -->
+avoidAttributeInElement
+
+<!-- DITA-specific -->
+dita-allowedElementsForClass
+dita-allowOnlyBlockElements
+```
+
+```xml Example: Word Count Limit
+<dl>
+  <dlhead>
+    <dthd>Rule</dthd>
+    <ddhd>restrictWords</ddhd>
+  </dlhead>
+  <dlentry>
+    <dt>parentElement</dt>
+    <dd>title</dd>
+  </dlentry>
+  <dlentry>
+    <dt>minWords</dt>
+    <dd>1</dd>
+  </dlentry>
+  <dlentry>
+    <dt>maxWords</dt>
+    <dd>8</dd>
+  </dlentry>
+  <dlentry>
+    <dt>message</dt>
+    <dd>Keep titles concise!</dd>
+  </dlentry>
+</dl>
+```
+
+</CodeGroup>
+</Step>
+
+</Steps>
+
+## Step 4: Generate Validation Schema
+
+Now we'll transform the style guide topics into a Schematron validation schema.
+
+<Steps>
+
+<Step title="Run the gen-rules.xsl transformation">
+In oXygen, use the pre-configured transformation scenario:
+
+1. Open `info-model/styleguide.ditamap`
+2. Click the **Configure Transformation Scenario(s)** button (or press **Ctrl+Shift+C** / **Cmd+Shift+C**)
+3. Select **Generate Rules** from the list
+4. Click **Apply Associated**
+
+Alternatively, run via command line with Saxon:
+
+```bash
+cd dim
+saxon -xsl:gen-rules/gen-rules.xsl -s:info-model/styleguide.ditamap
+```
+</Step>
+
+<Step title="Verify the generated schema">
+Open the generated file at `info-model/rules/rules.sch`. You should see:
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Do not edit this file directly!
+  This file is generated automatically by processing info-model/styleguide.ditamap
+  If you want to change the rules, edit the corresponding sections 
+  marked with audience="rules" in the corresponding topic files.
+-->
+<schema queryBinding="xslt2">
+  <!-- Includes for all abstract patterns from library -->
+  <include href="library.sch#avoidWordInElement"/>
+  <include href="library.sch#restrictWords"/>
+  <!-- ... more includes ... -->
+  
+  <!-- Your instantiated rule -->
+  <!--Generated from c_TitlingTopics.dita.-->
+  <pattern is-a="avoidWordInElement" 
+           see="http://example.com/styleguide/webhelp/c_TitlingTopics.html">
+    <param name="element" value="title"/>
+    <param name="word" value="simple"/>
+    <param name="message" value="Avoid using 'simple' in titles. Be specific about what makes the topic useful."/>
+  </pattern>
+  
+  <!-- Other generated rules -->
+</schema>
+```
+
+<Tip>
+Note the `see` attribute - it links back to the style guide topic where the rule was defined, providing context for authors when validation errors occur.
+</Tip>
+</Step>
+
+</Steps>
+
+## Step 5: Test the Rule
+
+Let's verify that your rule works by testing it on sample content.
+
+<Steps>
+
+<Step title="Create a test DITA topic">
+Create a new file `test/test-title.dita`:
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE concept PUBLIC "-//OASIS//DTD DITA Concept//EN" "concept.dtd">
+<concept id="test">
+  <title>A simple guide to testing</title>
+  <conbody>
+    <p>This title contains the word 'simple' and should trigger a warning.</p>
+  </conbody>
+</concept>
+```
+</Step>
+
+<Step title="Associate the Schematron schema">
+Add an `xml-model` processing instruction at the top of your test file:
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<?xml-model href="../info-model/rules/rules.sch" 
+            type="application/xml" 
+            schematypens="http://purl.oclc.org/dsdl/schematron"?>
+<!DOCTYPE concept PUBLIC "-//OASIS//DTD DITA Concept//EN" "concept.dtd">
+<concept id="test">
+  <title>A simple guide to testing</title>
+  <!-- ... -->
+</concept>
+```
+</Step>
+
+<Step title="Validate the document">
+In oXygen:
+1. Open `test/test-title.dita`
+2. Click the **Validate** button or press **Ctrl+Shift+V** / **Cmd+Shift+V**
+
+You should see a warning on the title:
+
+```
+Warning: Avoid using 'simple' in titles. Be specific about what makes the topic useful.
+Location: /concept/title
+See: http://example.com/styleguide/webhelp/c_TitlingTopics.html
+```
+
+<Tip>
+Clicking the `See` link (once you've published the WebHelp) will take you directly to the style guide topic explaining why this rule exists.
+</Tip>
+</Step>
+
+</Steps>
+
+## Step 6: Publish and Integrate
+
+<Steps>
+
+<Step title="Publish the style guide">
+Generate WebHelp output for your style guide:
+
+1. Select `info-model/styleguide.ditamap`
+2. Run the **Generate Style Guide** transformation scenario
+3. Output will be in `info-model/styleguide/` (or your configured output directory)
+
+This creates an HTML version of your style guide that authors can browse and that validation messages link to.
+</Step>
+
+<Step title="Generate content completion mappings">
+Run the second generation script to create element/attribute tooltips:
+
+```bash
+saxon -xsl:gen-rules/gen-mappings.xsl -s:info-model/styleguide.ditamap
+```
+
+This generates `info-model/rules/contentCompletionElementsMap.xml`, which maps elements and attributes to style guide topics.
+</Step>
+
+<Step title="Configure your DITA framework">
+To integrate DIM into your authoring workflow:
+
+1. Copy the generated files to your project:
+   - `rules/rules.sch` → Your validation schema location
+   - `rules/contentCompletionElementsMap.xml` → Your framework configuration
+   - Published WebHelp → Your web server or local docs folder
+
+2. Update the catalog file (`info-model/rules/catalog.xml`) to point to your published WebHelp:
+
+```xml
+<rewriteURI 
+  uriStartString="http://example.com/styleguide/webhelp/" 
+  rewritePrefix="path/to/your/published/styleguide/"/>
+```
+
+3. Associate the Schematron schema with your DITA framework in oXygen (see [Installation](/installation) for framework setup details)
+</Step>
+
+</Steps>
+
+## What You've Accomplished
 
 <CardGroup cols={2}>
 
-<Card title="Write Content" icon="pen-to-square" href="/essentials/markdown">
-  Learn MDX syntax and start writing your documentation.
+<Card title="Created a Rule" icon="check">
+Added an enforceable validation rule embedded directly in a style guide topic
 </Card>
 
-<Card title="Customize style" icon="palette" href="/essentials/settings">
-  Make your docs match your brand perfectly.
+<Card title="Generated Schema" icon="file-code">
+Automatically generated a Schematron validation schema from your style guide content
 </Card>
 
-<Card title="Add code examples" icon="square-code" href="/essentials/code">
-  Include syntax-highlighted code blocks.
+<Card title="Tested Validation" icon="vial">
+Verified that your rule correctly identifies style violations with helpful messages
 </Card>
 
-<Card title="API documentation" icon="code" href="/api-reference/introduction">
-  Auto-generate API docs from OpenAPI specs.
+<Card title="Linked Documentation" icon="link">
+Connected validation messages back to explanatory style guide content
 </Card>
 
 </CardGroup>
 
-<Note>
-  **Need help?** See our [full documentation](https://mintlify.com/docs) or join our [community](https://mintlify.com/community).
-</Note>
+## Next Steps
+
+<Steps>
+
+<Step title="Explore the rule library">
+Review `info-model/rules/library.sch` to see all available abstract patterns and their parameters. Each pattern includes documentation explaining its purpose and usage.
+</Step>
+
+<Step title="Add metadata annotations">
+Learn how to make your style guide topics discoverable by adding `<data>` elements with element/attribute mappings. This enables contextual tooltips in the editor.
+
+```xml
+<prolog>
+  <data audience="styleguide" name="title" value="Titling Topics"/>
+  <data audience="styleguide" name="@conref" value="Using conref"/>
+</prolog>
+```
+</Step>
+
+<Step title="Customize the style guide">
+Replace the sample content with your own style guide topics, or modify existing topics to match your organization's standards.
+</Step>
+
+<Step title="Set up framework integration">
+For production use, properly integrate DIM into your oXygen framework following the detailed instructions in the [Installation](/installation) guide.
+</Step>
+
+</Steps>
+
+<Warning>
+Remember that `rules.sch` is auto-generated - never edit it directly! Always modify the rules in your style guide topics and regenerate the schema.
+</Warning>
+
+## Common Issues
+
+<AccordionGroup>
+
+<Accordion title="Validation doesn't show any errors">
+**Cause:** The Schematron schema may not be properly associated with your document.
+
+**Solution:** Add the `<?xml-model?>` processing instruction or configure framework-level validation in oXygen's Validation tab.
+</Accordion>
+
+<Accordion title="Generated schema is empty or missing rules">
+**Cause:** Rules sections may not be properly marked with `audience="rules"` or the XSLT script can't find the library.
+
+**Solution:** Verify that:
+- Rules are in `<section audience="rules">` elements
+- The `library.sch` file exists at `info-model/rules/library.sch`
+- Your DITA map correctly references all topics
+</Accordion>
+
+<Accordion title="Links to style guide don't work">
+**Cause:** The WebHelp base URL in the catalog isn't correctly configured.
+
+**Solution:** Update `rewritePrefix` in `info-model/rules/catalog.xml` to point to your actual published WebHelp location.
+</Accordion>
+
+</AccordionGroup>
+
+## Need Help?
+
+- **Browse the sample style guide** included in `info-model/` for more examples of rules and metadata
+- **Check the library documentation** in `info-model/rules/library.sch` for all available rule patterns
+- **Review the detailed setup** in [Installation](/installation) for framework configuration
+- **Open issues** on the [GitHub repository](https://github.com/oxygenxml/dim) for bugs or feature requests

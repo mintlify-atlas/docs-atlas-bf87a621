@@ -1,0 +1,294 @@
+---
+title: Business Rule Classes
+description: Core classes for representing and managing business rules in the DIM framework
+---
+
+The business rule classes provide the foundation for representing, organizing, and accessing validation rules within the Dynamic Information Model framework.
+
+## BusinessRule
+
+Represents a single business rule with its parameters and documentation.
+
+### Properties
+
+<ParamField path="ruleName" type="String" required>
+  The unique name identifier for the rule
+</ParamField>
+
+<ParamField path="params" type="List<BusinessRuleParam>">
+  The list of parameters that this rule accepts
+</ParamField>
+
+<ParamField path="description" type="String">
+  HTML documentation describing the rule's purpose and behavior
+</ParamField>
+
+### Methods
+
+#### getRuleName()
+
+<ResponseField name="return" type="String">
+  Returns the name of this rule
+</ResponseField>
+
+```java
+public String getRuleName()
+```
+
+#### setRuleName(String ruleName)
+
+Sets the rule name.
+
+<ParamField path="ruleName" type="String" required>
+  The name to set for this rule
+</ParamField>
+
+```java
+public void setRuleName(String ruleName)
+```
+
+#### getParams()
+
+<ResponseField name="return" type="List<BusinessRuleParam>">
+  Returns the parameters for this rule
+</ResponseField>
+
+```java
+public List<BusinessRuleParam> getParams()
+```
+
+#### setParams(List params)
+
+<ParamField path="params" type="List<BusinessRuleParam>" required>
+  The parameters to set for this rule
+</ParamField>
+
+```java
+public void setParams(List<BusinessRuleParam> params)
+```
+
+#### getDescription()
+
+<ResponseField name="return" type="String">
+  Returns the HTML description for this rule
+</ResponseField>
+
+```java
+public String getDescription()
+```
+
+#### setDescription(String description)
+
+<ParamField path="description" type="String" required>
+  The HTML description to set for this rule
+</ParamField>
+
+```java
+public void setDescription(String description)
+```
+
+### Example
+
+```java
+BusinessRule rule = new BusinessRule();
+rule.setRuleName("check-section-title");
+rule.setDescription("<html><p>Validates section title format</p></html>");
+
+List<BusinessRuleParam> params = new ArrayList<>();
+BusinessRuleParam param = new BusinessRuleParam();
+param.setName("minLength");
+param.setDescription("Minimum title length");
+params.add(param);
+
+rule.setParams(params);
+```
+
+## BusinessRuleParam
+
+Represents a parameter for a business rule.
+
+### Properties
+
+<ParamField path="name" type="String" required>
+  The parameter name
+</ParamField>
+
+<ParamField path="description" type="String">
+  Documentation describing the parameter's purpose
+</ParamField>
+
+### Methods
+
+#### getName()
+
+<ResponseField name="return" type="String">
+  Returns the name of this parameter
+</ResponseField>
+
+```java
+public String getName()
+```
+
+#### setName(String name)
+
+<ParamField path="name" type="String" required>
+  The name to set for this parameter
+</ParamField>
+
+```java
+public void setName(String name)
+```
+
+#### getDescription()
+
+<ResponseField name="return" type="String">
+  Returns the documentation for this parameter
+</ResponseField>
+
+```java
+public String getDescription()
+```
+
+#### setDescription(String description)
+
+<ParamField path="description" type="String" required>
+  The documentation to set for this parameter
+</ParamField>
+
+```java
+public void setDescription(String description)
+```
+
+## BusinessRuleLibrary
+
+Contains all the rules detected in a specific Schematron library file.
+
+### Properties
+
+<ParamField path="rules" type="List<BusinessRule>">
+  The list of business rules in this library (read-only)
+</ParamField>
+
+<ParamField path="timestamp" type="long">
+  The modification time of the library file when it was parsed, used for caching
+</ParamField>
+
+### Methods
+
+#### getRules()
+
+<ResponseField name="return" type="List<BusinessRule>">
+  Returns the rules from this library
+</ResponseField>
+
+```java
+public List<BusinessRule> getRules()
+```
+
+#### getTimestamp()
+
+<ResponseField name="return" type="long">
+  Returns the modification time of the library when it was parsed
+</ResponseField>
+
+```java
+public long getTimestamp()
+```
+
+#### setTimestamp(long timestamp)
+
+<ParamField path="timestamp" type="long" required>
+  The modification time to set for this library
+</ParamField>
+
+```java
+public void setTimestamp(long timestamp)
+```
+
+### Example
+
+```java
+BusinessRuleLibrary library = new BusinessRuleLibrary();
+List<BusinessRule> rules = library.getRules();
+
+for (BusinessRule rule : rules) {
+    System.out.println("Rule: " + rule.getRuleName());
+}
+```
+
+## BusinessRuleRepository
+
+Singleton repository that loads and caches business rule libraries. Extracts rules from Schematron files using XSLT transformation.
+
+### Methods
+
+#### getInstance()
+
+Returns the singleton instance of the repository.
+
+<ResponseField name="return" type="BusinessRuleRepository">
+  The singleton instance
+</ResponseField>
+
+```java
+public static BusinessRuleRepository getInstance()
+```
+
+#### loadLibrary(AuthorXMLUtilAccess, URL)
+
+Loads a rules library from a Schematron file, parsing and caching the results.
+
+<ParamField path="authorXMLAccess" type="AuthorXMLUtilAccess" required>
+  Oxygen XML utility access for XSLT transformation
+</ParamField>
+
+<ParamField path="library" type="URL" required>
+  The URL to the Schematron library file
+</ParamField>
+
+<ResponseField name="return" type="BusinessRuleLibrary">
+  The parsed library containing all extracted rules
+</ResponseField>
+
+<ResponseField name="throws" type="TransformerException">
+  If XSLT transformation fails
+</ResponseField>
+
+<ResponseField name="throws" type="JAXBException">
+  If XML parsing fails
+</ResponseField>
+
+```java
+public BusinessRuleLibrary loadLibrary(
+    AuthorXMLUtilAccess authorXMLAccess, 
+    URL library
+) throws TransformerException, JAXBException
+```
+
+### Example
+
+```java
+// Get the singleton instance
+BusinessRuleRepository repository = BusinessRuleRepository.getInstance();
+
+// Load a library
+URL libraryURL = new URL("file:///path/to/rules.sch");
+BusinessRuleLibrary library = repository.loadLibrary(
+    authorAccess.getXMLUtilAccess(), 
+    libraryURL
+);
+
+// Access cached rules
+List<BusinessRule> rules = library.getRules();
+```
+
+### Caching Behavior
+
+The repository maintains an internal cache of parsed libraries. When `loadLibrary()` is called:
+
+1. It checks if the library is already cached
+2. Compares the file's last modification timestamp
+3. Reloads only if the file has changed
+4. Returns the cached version if unchanged
+
+This ensures efficient performance when the same library is accessed multiple times.

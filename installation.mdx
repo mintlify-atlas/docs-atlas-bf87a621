@@ -1,0 +1,616 @@
+---
+title: Installation
+description: Detailed installation and configuration instructions for setting up the Dynamic Information Model framework in your DITA authoring environment
+---
+
+This guide provides comprehensive instructions for installing and configuring DIM in your DITA authoring environment, with specific focus on oXygen XML Editor integration.
+
+## Prerequisites
+
+Before installing DIM, ensure you have the following:
+
+<CardGroup cols={2}>
+
+<Card title="DITA Authoring Tool" icon="file-code">
+oXygen XML Editor 17.0 or later (recommended)
+
+**Alternative:** Any DITA-capable editor that supports Schematron validation and XSLT 2.0
+</Card>
+
+<Card title="XSLT Processor" icon="gears">
+Saxon-HE 9.x or later for XSLT 2.0 transformations
+
+**Note:** Saxon is bundled with oXygen XML Editor
+</Card>
+
+<Card title="Version Control" icon="code-branch">
+Git for cloning the repository and managing your customizations
+
+**Optional but recommended** for collaborative style guide development
+</Card>
+
+<Card title="DITA Publishing" icon="book">
+DITA-OT or oXygen WebHelp for publishing style guide output
+
+**Required** for generating the browsable style guide
+</Card>
+
+</CardGroup>
+
+<Warning>
+DIM requires XSLT 2.0 support. Older XSLT 1.0 processors will not work with the generation scripts.
+</Warning>
+
+## System Requirements
+
+### Minimum Requirements
+
+- **Operating System:** Windows 7+, macOS 10.12+, or Linux (any modern distribution)
+- **Memory:** 2 GB RAM (4 GB recommended for large style guides)
+- **Disk Space:** 50 MB for DIM core files, plus space for style guide content and published output
+- **Java:** Java 8 or later (required for Saxon and oXygen)
+
+### Recommended Setup
+
+- **oXygen XML Editor:** Author or Editor license (Developer license works but is overkill)
+- **DITA-OT:** Version 3.x or later for WebHelp generation
+- **Screen Resolution:** 1920x1080 or higher for comfortable editing
+
+## Installation Steps
+
+### Step 1: Clone the Repository
+
+<CodeGroup>
+
+```bash HTTPS
+git clone https://github.com/oxygenxml/dim.git
+cd dim
+```
+
+```bash SSH
+git clone git@github.com:oxygenxml/dim.git
+cd dim
+```
+
+```bash GitHub CLI
+gh repo clone oxygenxml/dim
+cd dim
+```
+
+</CodeGroup>
+
+<Tip>
+If you're using DIM for your organization, consider forking the repository first so you can customize it and maintain your own version under source control.
+</Tip>
+
+### Step 2: Verify Directory Structure
+
+After cloning, verify the directory structure:
+
+```bash
+tree -L 2 dim/
+```
+
+Expected output:
+
+```
+dim/
+├── CODE_OF_CONDUCT.md
+├── CONTRIBUTING.md
+├── LICENSE
+├── README.md
+├── dim.xpr                          # oXygen project file
+├── doc/                             # Additional documentation
+├── frameworks/                      # oXygen framework extensions
+│   └── dim/                        # DIM framework files
+│       ├── css/                    # Styling for DIM views
+│       ├── dim.framework           # Framework descriptor
+│       ├── dim2sch.xsl            # Schema generation script
+│       ├── images/                # Icons for DIM actions
+│       ├── oxygen-gim-extensions.jar  # Java extensions
+│       └── pagedown/              # Markdown preview
+├── gen-rules/                      # Rule generation scripts
+│   ├── gen-mappings.xsl           # Generates content completion maps
+│   ├── gen-rules.xsl              # Generates Schematron schemas
+│   └── pagedown/                  # Dependencies
+├── info-model/                     # Sample style guide
+│   ├── c_*.dita                   # Style guide topics
+│   ├── styleguide.ditamap         # Main DITA map
+│   ├── rules/                     # Rule library and outputs
+│   │   ├── library.sch            # Abstract rule patterns
+│   │   ├── rules.sch              # Generated Schematron (created after first generation)
+│   │   ├── contentCompletionElementsMap.xml  # Generated mappings
+│   │   └── catalog.xml            # XML catalog for URL resolution
+│   └── graphics/                  # Images for style guide
+├── oxygen-sdk-workspace/           # SDK extensions (for developers)
+└── test/                          # Test files and samples
+```
+
+### Step 3: Install the oXygen Framework (Recommended)
+
+<Steps>
+
+<Step title="Locate the frameworks directory">
+Find your oXygen frameworks directory:
+
+- **Windows:** `C:\Program Files\Oxygen XML Editor\frameworks\`
+- **macOS:** `/Applications/Oxygen XML Editor/frameworks/`
+- **Linux:** `/opt/oxygen/frameworks/` or wherever you installed oXygen
+
+<Note>
+For user-specific installations (recommended), use:
+- **Windows:** `%APPDATA%\com.oxygenxml\frameworks\`
+- **macOS:** `~/Library/Preferences/com.oxygenxml/frameworks/`
+- **Linux:** `~/.com.oxygenxml/frameworks/`
+</Note>
+</Step>
+
+<Step title="Copy or link the DIM framework">
+**Option A: Copy the framework (simpler)**
+
+```bash
+# Copy the DIM framework to oXygen's frameworks directory
+cp -r dim/frameworks/dim /path/to/oxygen/frameworks/
+```
+
+**Option B: Create a symbolic link (easier to update)**
+
+```bash
+# Create a symlink to keep the framework in sync with your repo
+ln -s /absolute/path/to/dim/frameworks/dim /path/to/oxygen/frameworks/dim
+```
+
+<Tip>
+Using a symbolic link allows you to pull updates from the DIM repository and have them immediately available in oXygen without copying files.
+</Tip>
+</Step>
+
+<Step title="Extend the DITA framework">
+To use DIM with your DITA content:
+
+1. Open oXygen XML Editor
+2. Go to **Options → Preferences → Document Type Association**
+3. Find **DITA** in the list and select it
+4. Click **Extend** (or **Duplicate** if you want more control)
+5. Name it something like `DITA + DIM` or `DITA-MyOrg`
+6. Click **OK**
+
+Now you have a custom DITA framework that you can configure to use DIM's validation and content completion features.
+</Step>
+
+<Step title="Verify framework installation">
+1. Open a DITA file from the sample style guide: `dim/info-model/c_TitlingTopics.dita`
+2. Check the **Styles** dropdown at the bottom of the editor
+3. You should see **+ DIM** as an option
+4. Select it to enable DIM-specific toolbar actions
+
+If you see this option, the framework is correctly installed!
+</Step>
+
+</Steps>
+
+### Step 4: Configure Schematron Validation
+
+To automatically validate DITA documents against style guide rules:
+
+<Tabs>
+
+<Tab title="Framework-Level Validation">
+
+**Recommended:** Configure validation at the framework level so all documents automatically use DIM rules.
+
+1. Go to **Options → Preferences → Document Type Association**
+2. Select your DITA + DIM framework and click **Edit**
+3. Select the **Validation** tab
+4. Click **Edit** on the default validation scenario (or create a new one)
+5. Add a new validation unit:
+   - **Validation engine:** Schematron
+   - **Schema:** `${framework}/dim-rules/rules.sch` (adjust path as needed)
+   - **Phase:** All (or select specific phases if configured)
+6. Set it to run as part of **Automatic validation**
+7. Click **OK** to save
+
+Now all DITA documents will be validated against your style guide rules automatically.
+
+<Tip>
+You can create multiple validation scenarios for different rule sets (e.g., strict vs. lenient) and let authors choose which to apply.
+</Tip>
+
+</Tab>
+
+<Tab title="Document-Level Validation">
+
+**Alternative:** Associate the schema within each document using a processing instruction.
+
+Add this at the top of your DITA files (after the XML declaration):
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<?xml-model href="path/to/info-model/rules/rules.sch" 
+            type="application/xml" 
+            schematypens="http://purl.oclc.org/dsdl/schematron"?>
+<!DOCTYPE concept PUBLIC "-//OASIS//DTD DITA Concept//EN" "concept.dtd">
+```
+
+**Pros:** 
+- Works in any editor that supports Schematron
+- Portable with the document
+
+**Cons:**
+- Must be added to every file
+- Path may break if files move
+</Tab>
+
+</Tabs>
+
+### Step 5: Configure Content Completion
+
+To enable contextual tooltips that link to style guide topics:
+
+<Steps>
+
+<Step title="Generate the content completion map">
+First, generate the `contentCompletionElementsMap.xml` file:
+
+```bash
+cd dim
+saxon -xsl:gen-rules/gen-mappings.xsl -s:info-model/styleguide.ditamap
+```
+
+This creates `info-model/rules/contentCompletionElementsMap.xml`.
+</Step>
+
+<Step title="Update the XML catalog">
+Edit your framework's catalog file (or create one if it doesn't exist).
+
+For the DITA framework, edit `frameworks/dita/catalog.xml` (or your extended framework's catalog).
+
+Add this entry:
+
+```xml
+<uri name="http://www.oxygenxml.com/dita/styleguide/contentCompletionElementsMap.xml" 
+     uri="path/to/dim/info-model/rules/contentCompletionElementsMap.xml"/>
+```
+
+Replace `dita` in the URL with your framework name if you created a custom framework (e.g., `dita-myorg`).
+
+<Note>
+The framework name in the URL must match your framework's name exactly. oXygen uses this pattern to discover content completion mappings for each framework.
+</Note>
+</Step>
+
+<Step title="Publish and configure the style guide location">
+Generate WebHelp output from your style guide:
+
+1. Open `info-model/styleguide.ditamap` in oXygen
+2. Run a WebHelp transformation (DITA Map WebHelp Responsive)
+3. Note the output location
+
+Then update `info-model/rules/catalog.xml` to point to your published output:
+
+```xml
+<rewriteURI 
+  uriStartString="http://example.com/styleguide/webhelp/" 
+  rewritePrefix="file:///path/to/published/webhelp/"/>
+```
+
+Or if hosting on a web server:
+
+```xml
+<rewriteURI 
+  uriStartString="http://example.com/styleguide/webhelp/" 
+  rewritePrefix="https://styleguide.mycompany.com/"/>
+```
+</Step>
+
+<Step title="Test content completion">
+1. Open a DITA topic in oXygen
+2. Place your cursor on an element like `<title>`
+3. Press **Ctrl+Shift+F1** (or **Cmd+Shift+F1** on Mac) to show element info
+4. You should see a link to the relevant style guide topic
+
+Similarly, when you hover over elements, tooltips may show style guide links (depending on oXygen version and settings).
+</Step>
+
+</Steps>
+
+### Step 6: Generate Initial Rules
+
+Generate the Schematron validation schema from the sample style guide:
+
+<CodeGroup>
+
+```bash Command Line
+cd dim
+saxon -xsl:gen-rules/gen-rules.xsl -s:info-model/styleguide.ditamap
+```
+
+```bash oXygen Transformation
+# In oXygen:
+1. Open info-model/styleguide.ditamap
+2. Click "Configure Transformation Scenario(s)" (Ctrl+Shift+C)
+3. Select "Generate Rules"
+4. Click "Apply Associated"
+```
+
+</CodeGroup>
+
+This generates `info-model/rules/rules.sch`, which contains all the validation rules extracted from the style guide topics.
+
+<Tip>
+Set up a build script or oXygen project transformation scenario to automatically regenerate rules whenever you save changes to style guide topics.
+</Tip>
+
+## Directory Structure Explained
+
+Understanding DIM's directory structure helps you customize and maintain it:
+
+### `/info-model/`
+
+Your style guide content lives here. This is where you'll spend most of your time.
+
+```
+info-model/
+├── styleguide.ditamap          # Main map - defines TOC and structure
+├── c_*.dita                    # Concept topics (style guide prose + rules)
+├── rules/                      # Rule library and generated artifacts
+│   ├── library.sch             # Abstract rule patterns (edit carefully)
+│   ├── rules.sch               # Generated Schematron (DON'T EDIT)
+│   ├── contentCompletionElementsMap.xml  # Generated (DON'T EDIT)
+│   ├── catalog.xml             # URL mappings (edit for your environment)
+│   └── blockElements.xml       # DITA block element definitions
+└── graphics/                   # Images referenced in style guide
+```
+
+### `/gen-rules/`
+
+XSLT transformation scripts that process your style guide.
+
+```
+gen-rules/
+├── gen-rules.xsl               # Extracts rules from topics → rules.sch
+├── gen-mappings.xsl            # Extracts metadata → contentCompletionElementsMap.xml
+└── dim2sch.xsl                 # Legacy script (use gen-rules.xsl instead)
+```
+
+<Warning>
+Don't modify these scripts unless you're extending DIM functionality. They're designed to work with the specific markup patterns in DIM style guide topics.
+</Warning>
+
+### `/frameworks/dim/`
+
+oXygen framework extensions for DIM-specific UI and actions.
+
+```
+frameworks/dim/
+├── dim.framework               # Framework descriptor (XML)
+├── oxygen-gim-extensions.jar   # Java extensions for custom actions
+├── images/                     # Icons for DIM toolbar buttons
+└── css/                        # Styling for + DIM author mode
+```
+
+## Configuration Options
+
+### Customizing the Rule Library
+
+The rule library (`info-model/rules/library.sch`) contains abstract Schematron patterns. To add your own patterns:
+
+1. Open `library.sch`
+2. Add a new `<pattern abstract="true" id="yourPatternName">`
+3. Define parameters using `<parameters xmlns="http://oxygenxml.com/ns/schematron/params">`
+4. Write the validation logic with `<rule>` and `<assert>` elements
+
+Example:
+
+```xml
+<pattern abstract="true" id="requireAttributeValue">
+  <title>Require a specific value for an attribute</title>
+  <parameters xmlns="http://oxygenxml.com/ns/schematron/params">
+    <parameter>
+      <name>element</name>
+      <desc>Element containing the attribute</desc>
+    </parameter>
+    <parameter>
+      <name>attribute</name>
+      <desc>Attribute name to check</desc>
+    </parameter>
+    <parameter>
+      <name>value</name>
+      <desc>Required attribute value</desc>
+    </parameter>
+    <parameter>
+      <name>message</name>
+      <desc>Validation message</desc>
+    </parameter>
+  </parameters>
+  <rule context="$element[@$attribute]">
+    <assert test="@$attribute = '$value'" role="error">
+      $message
+      Found: <value-of select="@$attribute"/>
+    </assert>
+  </rule>
+</pattern>
+```
+
+### Customizing Validation Severity
+
+Rules can have different severity levels:
+
+- **`role="error"`**: Blocks publishing (hard requirement)
+- **`role="warn"`**: Warning only (recommendation)
+- **`role="info"`**: Informational message
+
+Edit severity in your style guide topic rules:
+
+```xml
+<assert test="..." role="warn">  <!-- Change to "error" or "info" -->
+```
+
+Or modify the abstract pattern in `library.sch` to change default severity.
+
+### Publishing Configuration
+
+Configure WebHelp output in the transformation scenario:
+
+1. Open the DITAMAP in oXygen
+2. Configure Transformation Scenarios → Edit → Parameters
+3. Key parameters:
+   - `webhelp.publishing.template`: Choose a template
+   - `args.css`: Point to custom CSS
+   - `webhelp.logo.image`: Company logo
+   - `webhelp.search.enable`: Enable search (recommended)
+
+## Alternative Installation (Without oXygen)
+
+If you're not using oXygen XML Editor:
+
+<Steps>
+
+<Step title="Install Saxon">
+Download Saxon-HE from https://saxon.sourceforge.net/
+
+```bash
+# On macOS with Homebrew
+brew install saxon
+
+# On Linux (Ubuntu/Debian)
+apt-get install libsaxon-java
+
+# Or download JAR and run directly
+java -jar saxon-he-10.x.jar -xsl:transform.xsl -s:source.xml
+```
+</Step>
+
+<Step title="Install DITA-OT">
+Download and install DITA Open Toolkit from https://www.dita-ot.org/
+
+```bash
+# Extract DITA-OT
+tar -xzf dita-ot-3.x.tar.gz
+cd dita-ot-3.x/bin
+
+# Test installation
+./dita --version
+```
+</Step>
+
+<Step title="Run generation scripts manually">
+```bash
+# Generate rules
+saxon -xsl:gen-rules/gen-rules.xsl -s:info-model/styleguide.ditamap
+
+# Generate mappings
+saxon -xsl:gen-rules/gen-mappings.xsl -s:info-model/styleguide.ditamap
+
+# Publish WebHelp
+dita --input=info-model/styleguide.ditamap --format=html5 --output=output/webhelp
+```
+</Step>
+
+<Step title="Integrate with your editor">
+Most XML editors support:
+- **Schematron validation**: Associate `rules.sch` with DITA files
+- **Custom catalogs**: Add `catalog.xml` to your editor's catalog list
+
+Consult your editor's documentation for specific configuration steps.
+</Step>
+
+</Steps>
+
+## Troubleshooting
+
+<AccordionGroup>
+
+<Accordion title="Framework doesn't appear in oXygen">
+**Possible causes:**
+1. Framework files not in correct location
+2. oXygen needs restart after framework installation
+3. Framework descriptor is invalid
+
+**Solutions:**
+- Verify path: oXygen → Options → Preferences → Document Type Association → Show the frameworks directory location
+- Restart oXygen after installing frameworks
+- Check `frameworks/dim/dim.framework` for XML syntax errors
+</Accordion>
+
+<Accordion title="Validation doesn't run automatically">
+**Possible causes:**
+1. Validation scenario not configured
+2. Automatic validation disabled
+3. Schema path incorrect
+
+**Solutions:**
+- Check Options → Preferences → Editor → Validation → Automatic validation is enabled
+- Verify validation scenario includes Schematron unit
+- Use absolute paths or framework variables like `${framework}` in schema paths
+</Accordion>
+
+<Accordion title="Content completion links don't work">
+**Possible causes:**
+1. Catalog not properly configured
+2. Framework name mismatch in URL
+3. WebHelp not published or path incorrect
+
+**Solutions:**
+- Verify catalog entry uses correct framework name in URL
+- Regenerate `contentCompletionElementsMap.xml` after style guide changes
+- Ensure `rewritePrefix` in `catalog.xml` points to actual WebHelp location
+</Accordion>
+
+<Accordion title="Generation scripts fail with XSLT errors">
+**Possible causes:**
+1. Using XSLT 1.0 processor instead of 2.0
+2. Saxon version too old
+3. DITA map or topics have invalid structure
+
+**Solutions:**
+- Ensure Saxon-HE 9.x or later is installed
+- Verify DITA map and topics are well-formed and valid
+- Check that topics contain proper `audience="rules"` sections
+</Accordion>
+
+<Accordion title="Rules don't appear in generated Schematron">
+**Possible causes:**
+1. Rules sections not marked with `audience="rules"`
+2. Topics not referenced in DITA map
+3. Rule syntax incorrect
+
+**Solutions:**
+- Verify `<section audience="rules">` wraps rule definitions
+- Ensure all topics with rules are in the DITA map's hierarchy
+- Check rule `<dl>` structure matches expected format (dlhead with ddhd, dlentry with dt/dd)
+</Accordion>
+
+</AccordionGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+
+<Card title="Quick Start" icon="rocket" href="/quickstart">
+Create your first rule with the step-by-step quickstart guide
+</Card>
+
+<Card title="Explore the Sample" icon="book-open" href="/guides/sample-style-guide">
+Browse the included sample style guide to see DIM in action
+</Card>
+
+<Card title="Customize Rules" icon="wrench" href="/guides/creating-rules">
+Learn how to write custom validation rules for your style guide
+</Card>
+
+<Card title="Add Metadata" icon="tags" href="/guides/metadata-annotations">
+Make topics discoverable with element/attribute annotations
+</Card>
+
+</CardGroup>
+
+## Getting Help
+
+- **GitHub Issues:** [Report bugs or request features](https://github.com/oxygenxml/dim/issues)
+- **oXygen Forums:** [Get help with oXygen-specific questions](https://www.oxygenxml.com/forum/)
+- **DITA Users:** [Join the DITA community](https://groups.io/g/dita-users)
+
+<Note>
+DIM is open source under the Apache 2.0 license. Contributions are welcome! See [CONTRIBUTING.md](https://github.com/oxygenxml/dim/blob/master/CONTRIBUTING.md) for guidelines.
+</Note>

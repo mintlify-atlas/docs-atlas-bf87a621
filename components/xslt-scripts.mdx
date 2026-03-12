@@ -1,0 +1,417 @@
+---
+title: 'XSLT Scripts'
+description: 'Transform style guide topics into Schematron and configuration files'
+---
+
+The DIM project includes XSLT scripts that extract rules and metadata from style guide topics and generate Schematron validation files and Oxygen configuration files.
+
+## Overview
+
+Three main XSLT scripts power the DIM transformation pipeline:
+
+<CardGroup cols={3}>
+  <Card title="gen-rules.xsl" icon="file-code">
+    Generates Schematron validation rules
+  </Card>
+  <Card title="gen-mappings.xsl" icon="link">
+    Generates element/attribute documentation mappings
+  </Card>
+  <Card title="dim2sch.xsl" icon="shuffle">
+    Standalone Schematron generator with embedded patterns
+  </Card>
+</CardGroup>
+
+All scripts are located in the `gen-rules/` directory and require XSLT 2.0 support.
+
+## gen-rules.xsl
+
+Generates a complete Schematron file (`rules.sch`) by extracting rule instantiations from style guide topics.
+
+### Location
+```
+gen-rules/gen-rules.xsl
+```
+
+### Input
+The DITA map for your style guide (typically `styleguide.ditamap` or a bookmap).
+
+### Output
+```
+info-model/rules/rules.sch
+```
+
+A Schematron schema containing:
+- Include directives for abstract patterns from `library.sch`
+- Include directive for `quickFix-library.xml`
+- Pattern instantiations for each rule defined in style guide topics
+
+### How It Works
+
+<Accordion title="Processing Pipeline">
+
+**1. Template Matching**
+
+The script traverses the DITA map structure:
+```xml
+<xsl:template match="*[contains(@class, ' map/topicref ')]" mode="rules">
+  <xsl:apply-templates select="document(@href, .)" mode="rules"/>
+  <xsl:apply-templates mode="rules"/>
+</xsl:template>
+```
+
+**2. Rule Extraction**
+
+Rules are extracted from sections marked with `audience="rules"`:
+```xml
+<xsl:template match="section[@audience='rules']/dl" mode="rules">
+  <xsl:apply-templates select="." mode="instantiate"/>
+</xsl:template>
+```
+
+**3. Pattern Instantiation**
+
+Each definition list becomes a Schematron pattern instantiation:
+```xml
+<xsl:template match="dl" mode="instantiate">
+  <xsl:variable name="origin" select="substring-after(base-uri(.), $base)"/>
+  <xsl:variable name="target">
+    <xsl:text>http://example.com/styleguide/webhelp/</xsl:text>
+    <xsl:value-of select="replace($origin, '.dita', '.html')"/>
+  </xsl:variable>
+  <pattern is-a="{dlhead/ddhd}" see="{$target}">
+    <xsl:apply-templates mode="instantiate"/>
+  </pattern>
+</xsl:template>
+```
+
+The `dlhead/ddhd` element contains the abstract pattern name, and each `dlentry` becomes a parameter.
+
+**4. Parameter Mapping**
+
+```xml
+<xsl:template match="dlentry" mode="instantiate">
+  <xsl:variable name="ap">'</xsl:variable>
+  <xsl:variable name="doubleap">''</xsl:variable>
+  <param name="{dt}" value="{replace(dd, $ap, $doubleap)}"/>
+</xsl:template>
+```
+
+Note: Single quotes in parameter values are escaped to double single quotes.
+
+**5. Library Inclusion**
+
+Abstract patterns are included from the library:
+```xml
+<xsl:template match="iso:pattern[@abstract='true']" mode="generateIncludes">
+  <include href="library.sch#{@id}"/>
+</xsl:template>
+```
+
+</Accordion>
+
+### Example Transformation
+
+**Input** (from a DITA topic):
+```xml
+<section audience="rules">
+  <title>Business Rules</title>
+  <dl>
+    <dlhead>
+      <dthd>Rule</dthd>
+      <ddhd>restrictWords</ddhd>
+    </dlhead>
+    <dlentry>
+      <dt>parentElement</dt>
+      <dd>title</dd>
+    </dlentry>
+    <dlentry>
+      <dt>minWords</dt>
+      <dd>1</dd>
+    </dlentry>
+    <dlentry>
+      <dt>maxWords</dt>
+      <dd>8</dd>
+    </dlentry>
+    <dlentry>
+      <dt>message</dt>
+      <dd>Keep titles between 1 and 8 words.</dd>
+    </dlentry>
+  </dl>
+</section>
+```
+
+**Output** (in `rules.sch`):
+```xml
+<!--Generated from info-model/c_TitlingTopics.dita.-->
+<pattern is-a="restrictWords" 
+         see="http://example.com/styleguide/webhelp/info-model/c_TitlingTopics.html">
+  <param name="parentElement" value="title"/>
+  <param name="minWords" value="1"/>
+  <param name="maxWords" value="8"/>
+  <param name="message" value="Keep titles between 1 and 8 words."/>
+</pattern>
+```
+
+### Variables
+
+- `$library` - Resolves to `rules/library.sch` relative to the input document
+- `$base` - The base URI of the input document for resolving relative paths
+
+### Running the Script
+
+In Oxygen XML Editor, use the pre-configured transformation scenario or run manually:
+
+```bash
+saxon -xsl:gen-rules/gen-rules.xsl -s:info-model/styleguide.ditamap
+```
+
+## gen-mappings.xsl
+
+Generates a content completion configuration file that maps DITA elements and attributes to style guide documentation.
+
+### Location
+```
+gen-rules/gen-mappings.xsl
+```
+
+### Input
+The DITA map for your style guide.
+
+### Output
+```
+info-model/rules/contentCompletionElementsMap.xml
+```
+
+This file configures Oxygen XML Editor to show links to style guide topics in element and attribute tooltips.
+
+### How It Works
+
+<Accordion title="Processing Pipeline">
+
+**1. Document Structure**
+
+Creates the root configuration element:
+```xml
+<contentCompletionElementsMap
+  redirectURLPrefix="http://www.oxygenxml.com/redirect-url.php?url="
+  htmlContentFilterStylesheet="contentFilter.xsl">
+  <mappingGroup xml:base="http://example.com/styleguide/webhelp/">
+    <!-- Mappings go here -->
+  </mappingGroup>
+  <!-- Base descriptions from ditaContentCompletionElementsMap.xml -->
+</contentCompletionElementsMap>
+```
+
+**2. Metadata Extraction**
+
+Extracts metadata from `data` elements marked with `audience="styleguide"`:
+```xml
+<xsl:template match="data[@audience='styleguide']" mode="mapping">
+  <xsl:variable name="origin" select="substring-after(base-uri(.), $base)"/>
+  <xsl:variable name="target" select="replace($origin, '.dita', '.html')"/>
+  <xsl:choose>
+    <xsl:when test="starts-with(@name, '@')">
+      <mapping attributeName="{substring-after(@name, '@')}" 
+               path="{$target}" 
+               type="link" 
+               linkText="{@value}"/>
+    </xsl:when>
+    <xsl:otherwise>
+      <mapping elementName="{@name}" 
+               path="{$target}" 
+               type="link" 
+               linkText="{@value}"/>
+    </xsl:otherwise>
+  </xsl:choose>
+</xsl:template>
+```
+
+**3. Base Descriptions**
+
+Merges with base DITA element descriptions:
+```xml
+<xsl:copy-of select="document($baseDescriptions)/*/node()"/>
+```
+
+</Accordion>
+
+### Example Transformation
+
+**Input** (from a DITA topic):
+```xml
+<prolog>
+  <metadata>
+    <data audience="styleguide" name="title" value="Titling Topics"/>
+    <data audience="styleguide" name="@conref" value="Using Content References"/>
+  </metadata>
+</prolog>
+```
+
+**Output** (in `contentCompletionElementsMap.xml`):
+```xml
+<mappingGroup xml:base="http://example.com/styleguide/webhelp/">
+  <mapping elementName="title" 
+           path="info-model/c_TitlingTopics.html" 
+           type="link" 
+           linkText="Titling Topics"/>
+  <mapping attributeName="conref" 
+           path="info-model/c_ContentReuse.html" 
+           type="link" 
+           linkText="Using Content References"/>
+</mappingGroup>
+```
+
+### Variables
+
+- `$baseDescriptions` - Points to `rules/ditaContentCompletionElementsMap.xml` with default DITA element descriptions
+- `$library` - Resolves to `rules/library.sch`
+- `$base` - Base URI for resolving relative paths
+- `$title` - The title of the style guide map
+
+### Running the Script
+
+```bash
+saxon -xsl:gen-rules/gen-mappings.xsl -s:info-model/styleguide.ditamap
+```
+
+## dim2sch.xsl
+
+A standalone Schematron generator that embeds abstract patterns directly in the output instead of using includes.
+
+### Location
+```
+gen-rules/dim2sch.xsl
+frameworks/dim/dim2sch.xsl
+```
+
+### Key Differences from gen-rules.xsl
+
+<Accordion title="Comparison">
+
+| Feature | gen-rules.xsl | dim2sch.xsl |
+|---------|---------------|-------------|
+| **Library Patterns** | Included via `<include href="library.sch#pattern-id"/>` | Copied directly into output |
+| **Quick Fixes** | Included via `<include href="quickFix-library.xml"/>` | Copied directly into output |
+| **Use Case** | Development and maintenance | Standalone distribution |
+| **Dependencies** | Requires separate library files | Self-contained schema |
+
+</Accordion>
+
+### How It Works
+
+**1. Match Root Element**
+
+Only processes bookmap documents:
+```xml
+<xsl:template match="/bookmap" priority="100">
+  <schema queryBinding="xslt2">
+    <xsl:apply-templates mode="rules"/>
+    <xsl:apply-templates select="document($library)" mode="includesGenericRules"/>
+    <xsl:copy-of select="document('urn:rules:quickFix-library.xml')"/>
+  </schema>
+</xsl:template>
+```
+
+**2. Embed Library Patterns**
+
+Instead of generating includes, it copies the patterns:
+```xml
+<xsl:template match="iso:pattern[@abstract='true']" mode="includesGenericRules">
+  <xsl:copy-of select="."/>
+</xsl:template>
+```
+
+**3. URN Resolution**
+
+Uses URN resolution for library resources:
+```xml
+<xsl:variable name="library" select="'urn:rules:library.sch'"/>
+```
+
+The URNs are resolved via catalog files.
+
+### When to Use
+
+- **Use dim2sch.xsl** when you need a single, self-contained Schematron file for distribution
+- **Use gen-rules.xsl** during development for easier maintenance and debugging
+
+## Common Patterns
+
+All scripts share these common patterns:
+
+### Traversing DITA Maps
+
+```xml
+<xsl:template match="*[contains(@class, ' map/topicref ')]" mode="mode-name">
+  <xsl:if test="@href">
+    <xsl:apply-templates select="document(@href, .)" mode="mode-name"/>
+  </xsl:if>
+  <xsl:apply-templates mode="mode-name"/>
+</xsl:template>
+```
+
+### Ignoring Non-Rule Content
+
+```xml
+<xsl:template match="*" mode="rules">
+  <xsl:apply-templates mode="rules"/>
+</xsl:template>
+
+<xsl:template match="text()" mode="rules"/>
+```
+
+### Generating Output Comments
+
+```xml
+<xsl:comment>
+  Do not edit this file directly!
+  This file is generated automatically by processing 
+  <xsl:value-of select="substring-after(base-uri(/), $base)"/>
+</xsl:comment>
+```
+
+## Workflow Integration
+
+<Steps>
+  <Step title="Author Style Guide">
+    Create or edit DITA topics with embedded rules in `audience="rules"` sections and metadata in `audience="styleguide"` data elements.
+  </Step>
+  
+  <Step title="Generate Output">
+    Run the XSLT scripts to generate `rules.sch` and `contentCompletionElementsMap.xml`.
+  </Step>
+  
+  <Step title="Publish Style Guide">
+    Generate WebHelp output of the style guide to make it accessible to authors.
+  </Step>
+  
+  <Step title="Deploy">
+    Deploy the generated files to your Oxygen framework or validation infrastructure.
+  </Step>
+</Steps>
+
+## Customization
+
+You can customize the scripts to:
+
+- Change the output file locations by modifying `xsl:result-document/@href`
+- Adjust the WebHelp URL prefix in the `$target` variable construction
+- Add additional processing modes for custom metadata extraction
+- Filter which rules are generated based on custom criteria
+
+## Technical Requirements
+
+- XSLT 2.0 processor (Saxon 9+ recommended)
+- Input must be valid DITA map or bookmap
+- Referenced topics must be resolvable from the map
+
+## Related Resources
+
+<CardGroup cols={2}>
+  <Card title="Rule Library" icon="book-open" href="/components/rule-library">
+    Abstract patterns referenced by these scripts
+  </Card>
+  <Card title="Sample Style Guide" icon="file-lines" href="/components/sample-styleguide">
+    Example input for the XSLT scripts
+  </Card>
+</CardGroup>

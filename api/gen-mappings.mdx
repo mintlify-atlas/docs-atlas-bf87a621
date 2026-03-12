@@ -1,0 +1,344 @@
+---
+title: 'gen-mappings.xsl'
+description: 'Generate content completion mappings for Oxygen XML Editor integration'
+---
+
+## Overview
+
+The `gen-mappings.xsl` stylesheet extracts content completion mappings from DITA topics and generates an Oxygen XML Editor configuration file that provides context-sensitive help links. It processes data elements marked with `audience="styleguide"` to create associations between DITA elements/attributes and their corresponding documentation pages.
+
+**Location**: `gen-rules/gen-mappings.xsl`
+
+## Purpose
+
+This transformation enables the Dynamic Information Model to:
+- Provide in-editor documentation access for DITA elements and attributes
+- Generate Oxygen XML Editor content completion mappings automatically
+- Link authoring interface directly to style guide documentation
+- Support discoverable documentation through the editing environment
+
+## Input Requirements
+
+<ParamField path="Input Document" type="DITA Map or Topic" required>
+  A DITA map or topic file containing metadata elements with `audience="styleguide"` attributes that define element-to-documentation mappings.
+</ParamField>
+
+### Expected Metadata Structure
+
+Topics must include prolog metadata with styleguide data elements:
+
+```xml
+<prolog>
+  <metadata>
+    <data name="shortdesc" value="How to write short descriptions" audience="styleguide"/>
+    <data name="@format" value="Format attribute usage" audience="styleguide"/>
+    <data name="ph" value="Phrase element guidelines" audience="styleguide"/>
+  </metadata>
+</prolog>
+```
+
+## Output
+
+<ParamField path="rules/contentCompletionElementsMap.xml" type="Oxygen Content Completion Map">
+  An XML configuration file for Oxygen XML Editor that maps DITA elements and attributes to documentation URLs with display text.
+</ParamField>
+
+### Generated Configuration Structure
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<contentCompletionElementsMap
+  redirectURLPrefix="http://www.oxygenxml.com/redirect-url.php?url="
+  htmlContentFilterStylesheet="contentFilter.xsl">
+  
+  <mappingGroup xml:base="http://example.com/styleguide/webhelp/">
+    <!-- Element mappings -->
+    <mapping elementName="shortdesc" 
+             path="info-model/c_WritingShortDescriptions.html"
+             type="link" 
+             linkText="How to write short descriptions"/>
+    
+    <!-- Attribute mappings -->
+    <mapping attributeName="format"
+             path="info-model/c_Attributes.html"
+             type="link"
+             linkText="Format attribute usage"/>
+  </mappingGroup>
+  
+  <!-- Base DITA element descriptions from ditaContentCompletionElementsMap.xml -->
+  ...
+</contentCompletionElementsMap>
+```
+
+## Variables
+
+<ParamField path="baseDescriptions" type="URI">
+  Resolves to the base DITA element descriptions file that provides fallback documentation.
+  
+  **Default**: `resolve-uri('rules/ditaContentCompletionElementsMap.xml', base-uri(/))`
+</ParamField>
+
+<ParamField path="library" type="URI">
+  Resolves to the Schematron library location (referenced but not used in this transformation).
+  
+  **Default**: `resolve-uri('rules/library.sch', base-uri(/))`
+</ParamField>
+
+<ParamField path="base" type="URI">
+  Base URI for resolving relative paths and constructing documentation URLs.
+  
+  **Default**: `resolve-uri('.', base-uri(/))`
+</ParamField>
+
+## Parameters
+
+<ParamField path="title" type="String">
+  The title of the documentation set, extracted from the map title or first topic title.
+  
+  **Default**: `normalize-space((@title,//*[contains(@class, ' topic/title ')])[1])`
+</ParamField>
+
+## Template Rules
+
+### Root Template (/)
+
+Generates the content completion configuration file and coordinates the transformation.
+
+```xml
+<xsl:template match="/">
+  <xsl:result-document href="{$base}rules/contentCompletionElementsMap.xml">
+    <contentCompletionElementsMap
+      redirectURLPrefix="http://www.oxygenxml.com/redirect-url.php?url="
+      htmlContentFilterStylesheet="contentFilter.xsl">
+      <mappingGroup xml:base="http://example.com/styleguide/webhelp/">
+        <xsl:apply-templates mode="mapping" select="."/>
+      </mappingGroup>
+      <xsl:copy-of select="document($baseDescriptions)/*/node()"/>
+    </contentCompletionElementsMap>
+  </xsl:result-document>
+</xsl:template>
+```
+
+### Topic Reference Processing (mode="mapping")
+
+Recursively processes DITA map topic references and loads referenced topics.
+
+```xml
+<xsl:template match="*[contains(@class, ' map/topicref ')]" mode="mapping">
+  <xsl:apply-templates select="document(@href, .)" mode="mapping"/>
+  <xsl:apply-templates mode="mapping"/>
+</xsl:template>
+```
+
+### Styleguide Data Processing (mode="mapping")
+
+Converts metadata elements into content completion mappings, handling both elements and attributes.
+
+```xml
+<xsl:template match="data[@audience='styleguide']" mode="mapping"> 
+  <xsl:variable name="origin" select="substring-after(base-uri(.), $base)"/>
+  <xsl:variable name="target" select="replace($origin, '.dita', '.html')"/>
+  
+  <xsl:choose>
+    <xsl:when test="starts-with(@name, '@')">
+      <mapping attributeName="{substring-after(@name, '@')}" 
+               path="{$target}" 
+               type="link" 
+               linkText="{@value}"/>
+    </xsl:when>
+    <xsl:otherwise>
+      <mapping elementName="{@name}" 
+               path="{$target}" 
+               type="link" 
+               linkText="{@value}"/>
+    </xsl:otherwise>
+  </xsl:choose>
+</xsl:template>
+```
+
+### Default Templates (mode="mapping")
+
+Handle traversal through the document structure.
+
+```xml
+<xsl:template match="*" mode="mapping">
+  <xsl:apply-templates mode="mapping"/>
+</xsl:template>
+
+<xsl:template match="text()" mode="mapping"/>
+```
+
+## Mapping Types
+
+### Element Mappings
+
+For DITA elements, use the element name directly:
+
+```xml
+<data name="shortdesc" value="Short description guidelines" audience="styleguide"/>
+```
+
+Generates:
+
+```xml
+<mapping elementName="shortdesc" 
+         path="info-model/c_WritingShortDescriptions.html"
+         type="link" 
+         linkText="Short description guidelines"/>
+```
+
+### Attribute Mappings
+
+For DITA attributes, prefix the attribute name with `@`:
+
+```xml
+<data name="@href" value="Href attribute usage" audience="styleguide"/>
+```
+
+Generates:
+
+```xml
+<mapping attributeName="href"
+         path="info-model/c_LinkingStrategies.html"
+         type="link"
+         linkText="Href attribute usage"/>
+```
+
+## Usage Example
+
+### Running the Transformation
+
+```bash
+# Using Saxon XSLT processor
+saxon -s:info-model/styleguide.ditamap \
+      -xsl:gen-rules/gen-mappings.xsl \
+      -o:output.xml
+```
+
+### Input DITA Topic with Metadata
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<concept id="WritingShortDescriptions">
+  <title>Writing Short Descriptions</title>
+  <prolog>
+    <metadata>
+      <data name="shortdesc" 
+            value="How to write effective short descriptions" 
+            audience="styleguide"/>
+      <data name="abstract" 
+            value="Abstract element guidelines" 
+            audience="styleguide"/>
+    </metadata>
+  </prolog>
+  <conbody>
+    <p>Short descriptions provide concise summaries of topic content.</p>
+  </conbody>
+</concept>
+```
+
+### Input DITA Topic with Attribute Mapping
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<concept id="Attributes">
+  <title>DITA Attributes</title>
+  <prolog>
+    <metadata>
+      <data name="@format" 
+            value="Format attribute for non-DITA resources" 
+            audience="styleguide"/>
+      <data name="@scope" 
+            value="Scope attribute for link targets" 
+            audience="styleguide"/>
+      <data name="@audience" 
+            value="Audience filtering attribute" 
+            audience="styleguide"/>
+    </metadata>
+  </prolog>
+  <conbody>
+    <p>DITA provides numerous attributes for controlling content behavior.</p>
+  </conbody>
+</concept>
+```
+
+### Generated Content Completion Map
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Do not edit this file directly!
+     This file is generated automatically by processing info-model/styleguide.ditamap -->
+<contentCompletionElementsMap
+  redirectURLPrefix="http://www.oxygenxml.com/redirect-url.php?url="
+  htmlContentFilterStylesheet="contentFilter.xsl">
+  
+  <mappingGroup xml:base="http://example.com/styleguide/webhelp/">
+    <!-- Element mappings -->
+    <mapping elementName="shortdesc"
+             path="info-model/c_WritingShortDescriptions.html"
+             type="link"
+             linkText="How to write effective short descriptions"/>
+    
+    <mapping elementName="abstract"
+             path="info-model/c_WritingShortDescriptions.html"
+             type="link"
+             linkText="Abstract element guidelines"/>
+    
+    <!-- Attribute mappings -->
+    <mapping attributeName="format"
+             path="info-model/c_Attributes.html"
+             type="link"
+             linkText="Format attribute for non-DITA resources"/>
+    
+    <mapping attributeName="scope"
+             path="info-model/c_Attributes.html"
+             type="link"
+             linkText="Scope attribute for link targets"/>
+    
+    <mapping attributeName="audience"
+             path="info-model/c_Attributes.html"
+             type="link"
+             linkText="Audience filtering attribute"/>
+  </mappingGroup>
+  
+  <!-- Base DITA descriptions -->
+  <mappingGroup>
+    <!-- Default mappings from ditaContentCompletionElementsMap.xml -->
+  </mappingGroup>
+</contentCompletionElementsMap>
+```
+
+## Oxygen XML Editor Integration
+
+### How It Works
+
+1. **Content Completion**: When an author types in Oxygen XML Editor, the editor displays element/attribute suggestions
+2. **Contextual Help**: Each suggestion includes a help icon that links to the style guide documentation
+3. **URL Redirection**: Links use Oxygen's redirect mechanism for proper handling
+4. **Content Filtering**: The `contentFilter.xsl` stylesheet formats the displayed documentation
+
+### Configuration Steps
+
+1. Generate the content completion map using `gen-mappings.xsl`
+2. Place the output file in your Oxygen framework's `rules/` directory
+3. Configure the framework to reference `contentCompletionElementsMap.xml`
+4. Authors will see style guide links in content completion assistance
+
+## Key Features
+
+- **Element and Attribute Support**: Maps both DITA elements and attributes to documentation
+- **Automatic URL Generation**: Converts DITA file paths to HTML documentation URLs
+- **Extensible Base**: Includes standard DITA element descriptions as fallback
+- **Editor Integration**: Seamlessly integrates with Oxygen XML Editor's content completion
+- **Discoverable Documentation**: Makes style guide accessible at the point of authoring
+
+## Related Scripts
+
+- [gen-rules.xsl](/api/gen-rules) - Generates Schematron validation rules
+- [dim2sch.xsl](/api/dim2sch) - Alternative transformation for embedded schemas
+
+## See Also
+
+- Oxygen XML Editor documentation on content completion configuration
+- Base element descriptions: `rules/ditaContentCompletionElementsMap.xml`
+- Content filter stylesheet: `rules/contentFilter.xsl`

@@ -1,0 +1,339 @@
+---
+title: Annotating Topics with Metadata
+description: Learn how to add meta-information to style guide topics to make them discoverable from element and attribute tooltips
+icon: tags
+---
+
+## Overview
+
+DIM makes style guide topics auto-discoverable by annotating them with metadata that describes which DITA elements or attributes they document. This metadata is used to generate configuration files that link Oxygen's element tooltips directly to your style guide.
+
+## Metadata Syntax
+
+Add `<data>` elements to the `<metadata>` section in a topic's `<prolog>`:
+
+```xml
+<concept id="WritingShortDescriptions">
+  <title>Writing Short Descriptions</title>
+  <prolog>
+    <metadata>
+      <data name="shortdesc" value="How to write short descriptions" audience="styleguide"/>
+    </metadata>
+  </prolog>
+  <conbody>
+    <!-- Topic content -->
+  </conbody>
+</concept>
+```
+
+### Annotation Anatomy
+
+- **name** - The element or attribute name (prefix attributes with `@`)
+- **value** - Link text shown in Oxygen's tooltip
+- **audience="styleguide"** - Marks this as discoverable metadata
+
+## Annotating Elements
+
+To link a topic to a DITA element, use the element name in the `name` attribute:
+
+```xml
+<metadata>
+  <data name="shortdesc" value="How to write short descriptions" audience="styleguide"/>
+</metadata>
+```
+
+When authors work with the `<shortdesc>` element in Oxygen, the tooltip will include a link labeled "How to write short descriptions" pointing to this topic.
+
+## Annotating Attributes
+
+For attributes, prefix the name with `@`:
+
+```xml
+<metadata>
+  <data name="@audience" value="Using the audience attribute" audience="styleguide"/>
+</metadata>
+```
+
+## Adding Annotations with DIM Actions
+
+<Steps>
+  <Step title="Enable DIM styles">
+    Open your style guide topic in Oxygen XML Editor. Select **+ DIM** from the **Styles** dropdown.
+  </Step>
+
+  <Step title="Create or locate the prolog">
+    If your topic doesn't have a `<prolog>` section, add one after the `<title>` element:
+    
+    ```xml
+    <concept id="YourTopic">
+      <title>Your Topic Title</title>
+      <prolog>
+        <metadata>
+        </metadata>
+      </prolog>
+      <conbody>
+        <!-- content -->
+      </conbody>
+    </concept>
+    ```
+  </Step>
+
+  <Step title="Insert metadata using DIM action">
+    Position your cursor inside the `<metadata>` element. Use the **Add Element Annotation** or **Add Attribute Annotation** DIM action.
+    
+    You'll be prompted for:
+    - Element or attribute name
+    - Link text (descriptive label for the tooltip)
+  </Step>
+
+  <Step title="Verify the annotation">
+    The action inserts a properly formatted `<data>` element:
+    
+    ```xml
+    <data name="element-name" value="Link text" audience="styleguide"/>
+    ```
+  </Step>
+</Steps>
+
+## Multiple Annotations
+
+A single topic can document multiple elements or attributes. Add multiple `<data>` elements:
+
+```xml
+<metadata>
+  <data name="uicontrol" value="Using the uicontrol element" audience="styleguide"/>
+  <data name="wintitle" value="Using the wintitle element" audience="styleguide"/>
+  <data name="menucascade" value="Using the menucascade element" audience="styleguide"/>
+  <data name="filepath" value="Using the filepath element" audience="styleguide"/>
+</metadata>
+```
+
+This is useful for topics that cover related elements, like UI elements or linking elements.
+
+## Real-World Example
+
+From `info-model/c_WritingShortDescriptions.dita`:
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE concept PUBLIC "-//OASIS//DTD DITA Concept//EN" "concept.dtd">
+<concept id="ShortDescriptions">
+  <title>Writing Short Descriptions</title>
+  <prolog>
+    <metadata>
+      <data name="shortdesc" value="How to write short descriptions" audience="styleguide"/>
+    </metadata>
+  </prolog>
+  <conbody>
+    <p>The &lt;shortdesc> element immediately following the &lt;title> element 
+       expands on the title to provide additional information...</p>
+    <!-- Guidelines and rules -->
+  </conbody>
+</concept>
+```
+
+When authors position their cursor on a `<shortdesc>` element in Oxygen, they'll see a tooltip link: "How to write short descriptions" that opens this topic.
+
+## How Annotations Are Processed
+
+The `gen-mappings.xsl` script processes annotations to create the Oxygen configuration file:
+
+<Steps>
+  <Step title="Scan for metadata">
+    The script scans all topics referenced in your style guide map, looking for `<data>` elements with `audience="styleguide"`.
+  </Step>
+
+  <Step title="Generate mapping entries">
+    For each annotation, it creates a mapping entry in `contentCompletionElementsMap.xml`:
+    
+    ```xml
+    <mapping elementName="shortdesc" 
+             path="c_WritingShortDescriptions.html" 
+             type="link" 
+             linkText="How to write short descriptions"/>
+    ```
+  </Step>
+
+  <Step title="Differentiate elements and attributes">
+    - Element annotations use `elementName`
+    - Attribute annotations (starting with `@`) use `attributeName`
+    
+    ```xml
+    <mapping attributeName="audience" 
+             path="c_Attributes.html" 
+             type="link" 
+             linkText="Using the audience attribute"/>
+    ```
+  </Step>
+
+  <Step title="Link to published content">
+    Paths point to the HTML files in your published WebHelp output, making the links functional in the Oxygen editor.
+  </Step>
+</Steps>
+
+## Element vs. Attribute Annotations
+
+### Element Annotation
+
+```xml
+<data name="title" value="Guidelines for writing titles" audience="styleguide"/>
+```
+
+Generates:
+
+```xml
+<mapping elementName="title" 
+         path="c_TitlingTopics.html" 
+         type="link" 
+         linkText="Guidelines for writing titles"/>
+```
+
+### Attribute Annotation
+
+```xml
+<data name="@conref" value="Using content references" audience="styleguide"/>
+```
+
+Generates:
+
+```xml
+<mapping attributeName="conref" 
+         path="c_ReuseStrategy.html" 
+         type="link" 
+         linkText="Using content references"/>
+```
+
+<Warning>
+Always prefix attribute names with `@` to ensure they're processed correctly and mapped to attribute tooltips rather than element tooltips.
+</Warning>
+
+## Organizing Annotations
+
+### One Element Per Topic
+
+For complex elements with extensive guidelines, dedicate one topic per element:
+
+```xml
+<!-- c_ShortDescriptions.dita -->
+<metadata>
+  <data name="shortdesc" value="Short description guidelines" audience="styleguide"/>
+</metadata>
+```
+
+### Related Elements in One Topic
+
+For closely related elements, document them together with multiple annotations:
+
+```xml
+<!-- c_UserInterface.dita -->
+<metadata>
+  <data name="uicontrol" value="User interface elements" audience="styleguide"/>
+  <data name="wintitle" value="User interface elements" audience="styleguide"/>
+  <data name="menucascade" value="User interface elements" audience="styleguide"/>
+</metadata>
+```
+
+### Group by Category
+
+Organize topics by functional area (e.g., "Inline Elements", "Block Elements") and annotate all covered elements.
+
+## The Author Experience
+
+Once the configuration file is integrated into Oxygen:
+
+1. **Author opens a DITA file** in Oxygen
+2. **Positions cursor** on an element (e.g., `<shortdesc>`)
+3. **Views the tooltip** - Oxygen shows element documentation
+4. **Sees style guide link** - "How to write short descriptions"
+5. **Clicks the link** - Opens the relevant style guide topic in browser
+6. **Reads guidelines** - Gets context-specific authoring help
+
+This tight integration between the editor and style guide significantly improves author productivity.
+
+## Annotation Best Practices
+
+### Use Descriptive Link Text
+
+**Good:**
+```xml
+<data name="shortdesc" value="How to write effective short descriptions" audience="styleguide"/>
+```
+
+**Poor:**
+```xml
+<data name="shortdesc" value="Shortdesc" audience="styleguide"/>
+```
+
+The link text appears in tooltips - make it informative and action-oriented.
+
+### Cover All Documented Elements
+
+Review your style guide and ensure every element or attribute you've documented has a corresponding annotation.
+
+### Maintain Consistency
+
+Use consistent patterns for link text across your style guide:
+
+- "How to use [element name]"
+- "Guidelines for [element name]"
+- "[Element name] best practices"
+
+Pick one pattern and stick with it.
+
+### Update When Refactoring
+
+If you rename or reorganize topics, update the annotations to ensure they remain accurate.
+
+## Validation and Testing
+
+<Steps>
+  <Step title="Generate the mapping file">
+    Run `gen-mappings.xsl` on your style guide map:
+    
+    ```bash
+    saxon -s:info-model/styleguide.ditamap \
+          -xsl:gen-rules/gen-mappings.xsl \
+          -o:info-model/rules/contentCompletionElementsMap.xml
+    ```
+  </Step>
+
+  <Step title="Review the output">
+    Open `contentCompletionElementsMap.xml` and verify:
+    
+    - All annotated elements have mapping entries
+    - Paths point to correct HTML files
+    - Link text is descriptive and helpful
+  </Step>
+
+  <Step title="Test in Oxygen">
+    [Integrate the configuration](/guides/oxygen-integration) into Oxygen and verify tooltips show your style guide links.
+  </Step>
+</Steps>
+
+## Troubleshooting
+
+### Annotations Not Appearing
+
+**Check:**
+- `audience="styleguide"` is present on the `<data>` element
+- The topic is referenced in your style guide map
+- You've regenerated the mapping file after adding annotations
+
+### Broken Links
+
+**Check:**
+- The published WebHelp output exists at the configured location
+- File names match (DITA `.dita` extension becomes `.html` in output)
+- The catalog configuration points to the correct WebHelp base path
+
+### Attribute Annotations Not Working
+
+**Check:**
+- Attribute name starts with `@` (e.g., `@conref` not `conref`)
+- Using `attributeName` in the generated mapping, not `elementName`
+
+## Next Steps
+
+- [Generate the configuration file](/guides/generating-deliverables) using XSLT transformations
+- [Integrate into Oxygen](/guides/oxygen-integration) to make tooltips functional
+- Review the [complete sample style guide](https://github.com/oxygenxml/dim/tree/master/info-model) for annotation examples

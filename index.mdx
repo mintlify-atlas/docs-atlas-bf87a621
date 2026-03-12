@@ -1,97 +1,159 @@
 ---
-title: "Introduction"
-description: "Welcome to the new home for your documentation"
+title: "Dynamic Information Model"
+description: "An intelligent style guide framework that enforces content rules and provides discoverable DITA authoring guidelines"
 ---
 
-## Setting up
-
-Get your documentation site up and running in minutes.
-
-<Card
-  title="Start here"
-  icon="rocket"
-  href="/quickstart"
-  horizontal
->
-  Follow our three step quickstart guide.
-</Card>
-
-## Make it yours
-
-Design a docs site that looks great and empowers your users.
-
-<Columns cols={2}>
-  <Card
-    title="Edit locally"
-    icon="pen-to-square"
-    href="/development"
-  >
-    Edit your docs locally and preview them in real time.
-  </Card>
-  <Card
-    title="Customize your site"
-    icon="palette"
-    href="/essentials/settings"
-  >
-    Customize the design and colors of your site to match your brand.
-  </Card>
+<div style={{
+  padding: '3rem 0',
+  textAlign: 'center'
+}}>
+  <h1 style={{
+    fontSize: '3rem',
+    fontWeight: '700',
+    marginBottom: '1rem',
+    color: '#2E2E2E'
+  }}>
+    Intelligent Style Guide Framework
+  </h1>
+  <p style={{
+    fontSize: '1.25rem',
+    color: '#666',
+    maxWidth: '800px',
+    margin: '0 auto 2rem'
+  }}>
+    DIM combines an intelligent DITA style guide with automated rule enforcement and discoverable documentation for oXygen XML Editor
+  </p>
+  <CardGroup cols={2}>
     <Card
-    title="Set up navigation"
-    icon="map"
-    href="/essentials/navigation"
+      title="Get Started"
+      icon="rocket"
+      href="/quickstart"
+      color="#be2e37"
+    >
+      Learn how to set up and use DIM in minutes
+    </Card>
+    <Card
+      title="View on GitHub"
+      icon="github"
+      href="https://github.com/oxygenxml/dim"
+      color="#8c929c"
+    >
+      Explore the source code and contribute
+    </Card>
+  </CardGroup>
+</div>
+
+## Key Features
+
+<CardGroup cols={2}>
+  <Card
+    title="Intelligent Style Guide"
+    icon="book-open"
+    href="/concepts/intelligent-styleguide"
   >
-    Organize your docs to help users find what they need and succeed with your product.
+    DITA-based style guide with embedded, enforceable rules
   </Card>
   <Card
-    title="API documentation"
-    icon="terminal"
-    href="/api-reference/introduction"
+    title="Rule Enforcement"
+    icon="shield-check"
+    href="/concepts/rule-enforcement"
   >
-    Auto-generate API documentation from OpenAPI specifications.
-  </Card>
-</Columns>
-
-## Create beautiful pages
-
-Everything you need to create world-class documentation.
-
-<Columns cols={2}>
-  <Card
-    title="Write with MDX"
-    icon="pen-fancy"
-    href="/essentials/markdown"
-  >
-    Use MDX to style your docs pages.
+    Automatic Schematron validation from style guide topics
   </Card>
   <Card
-    title="Code samples"
+    title="Discoverable Topics"
+    icon="lightbulb"
+    href="/concepts/discoverable-topics"
+  >
+    Context-sensitive help in oXygen tooltips
+  </Card>
+  <Card
+    title="Generic Rule Library"
+    icon="books"
+    href="/components/rule-library"
+  >
+    Reusable Schematron abstract patterns
+  </Card>
+</CardGroup>
+
+## What You Get
+
+DIM provides a complete framework for creating and enforcing intelligent style guides:
+
+<CardGroup cols={3}>
+  <Card
+    title="Sample Style Guide"
+    icon="file-lines"
+    href="/components/sample-styleguide"
+  >
+    Starting point for your own style guide from Comtech Services
+  </Card>
+  <Card
+    title="Rule Library"
+    icon="database"
+    href="/components/rule-library"
+  >
+    Generic Schematron patterns for common validation rules
+  </Card>
+  <Card
+    title="XSLT Scripts"
     icon="code"
-    href="/essentials/code"
+    href="/components/xslt-scripts"
   >
-    Add sample code to demonstrate how to use your product.
+    Generate Schematron schemas and configuration files
   </Card>
   <Card
-    title="Images"
-    icon="image"
-    href="/essentials/images"
+    title="oXygen Framework"
+    icon="cube"
+    href="/components/oxygen-framework"
   >
-    Display images and other media.
+    Custom actions for defining rules and annotations
   </Card>
   <Card
-    title="Reusable snippets"
-    icon="recycle"
-    href="/essentials/reusable-snippets"
+    title="WebHelp Output"
+    icon="globe"
+    href="/guides/generating-deliverables"
   >
-    Write once and reuse across your docs.
+    Published style guide with links back from validation messages
   </Card>
-</Columns>
+  <Card
+    title="Integration"
+    icon="puzzle-piece"
+    href="/guides/oxygen-integration"
+  >
+    Seamless oXygen XML Editor integration
+  </Card>
+</CardGroup>
 
-## Need inspiration?
+## Quick Links
 
-<Card
-  title="See complete examples"
-  icon="stars"
-  href="https://mintlify.com/customers"
->
-  Browse our showcase of exceptional documentation sites.
-</Card>
+<CardGroup cols={2}>
+  <Card
+    title="Installation"
+    icon="download"
+    href="/installation"
+  >
+    Clone the repository and get started
+  </Card>
+  <Card
+    title="Core Concepts"
+    icon="graduation-cap"
+    href="/concepts/overview"
+  >
+    Understand how DIM works
+  </Card>
+  <Card
+    title="Creating a Style Guide"
+    icon="pen"
+    href="/guides/creating-style-guide"
+  >
+    Build your own intelligent style guide
+  </Card>
+  <Card
+    title="API Reference"
+    icon="terminal"
+    href="/api/gen-rules"
+  >
+    Explore XSLT scripts and Java extensions
+  </Card>
+</CardGroup>

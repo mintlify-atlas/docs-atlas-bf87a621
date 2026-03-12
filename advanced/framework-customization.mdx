@@ -1,0 +1,743 @@
+---
+title: "Framework Customization"
+description: "Learn how to extend the oXygen DIM framework with custom actions, operations, and Java extensions"
+---
+
+## Overview
+
+The DIM framework extends the standard DITA framework in oXygen XML Editor with specialized authoring tools for working with intelligent style guides. Understanding framework customization allows you to add custom actions, integrate new operations, and enhance the authoring experience.
+
+## Framework Architecture
+
+The DIM framework (`dim.framework`) is built as an extension patch to the base DITA framework. This approach preserves all standard DITA functionality while adding DIM-specific features.
+
+### Extension Patch Structure
+
+The framework uses oXygen's document type extension mechanism (`dim.framework:8-581`):
+
+```xml
+<documentTypeDescriptorPatch>
+  <field name="patchList">
+    <list>
+      <!-- Patches applied to base DITA framework -->
+    </list>
+  </field>
+  <field name="extendedPersistentObjectKey">
+    <String>DITA</String>
+  </field>
+</documentTypeDescriptorPatch>
+```
+
+This structure ensures DIM inherits all DITA capabilities while adding custom features.
+
+## Framework Components
+
+### Classpath Extensions
+
+DIM adds custom JAR files to the framework classpath (`dim.framework:29-45`):
+
+```xml
+<poPatch>
+  <field name="fieldPath">
+    <String>classpath</String>
+  </field>
+  <field name="value">
+    <String>${framework}/oxygen-gim-extensions.jar</String>
+  </field>
+  <field name="patchHandling">
+    <String>addIndex</String>
+  </field>
+</poPatch>
+```
+
+The `oxygen-gim-extensions.jar` contains Java classes for:
+- Business rule management
+- UI dialogs for rule selection
+- Custom Author operations
+
+### CSS Customizations
+
+DIM provides a specialized CSS layer for styling rule sections (`dim.framework:46-72`):
+
+```xml
+<cssFile>
+  <field name="href">
+    <String>${framework}/css/rules.css</String>
+  </field>
+  <field name="title">
+    <String>+ DIM</String>
+  </field>
+  <field name="alternate">
+    <Boolean>true</Boolean>
+  </field>
+</cssFile>
+```
+
+The `alternate="true"` setting makes this an optional CSS layer users can enable.
+
+## Custom Actions
+
+DIM defines three primary custom actions that appear in the authoring interface.
+
+### Add Business Rule Action
+
+The flagship DIM action allows authors to insert validation rules (`dim.framework:73-228`).
+
+**Action Definition**:
+
+```xml
+<action>
+  <field name="id">
+    <String>add.rule</String>
+  </field>
+  <field name="name">
+    <String>Add business rule</String>
+  </field>
+  <field name="description">
+    <String>Adds a new business rule.</String>
+  </field>
+  <field name="largeIconPath">
+    <String>${framework}/images/AddBusinessRule24.png</String>
+  </field>
+</action>
+```
+
+#### Context-Aware Action Modes
+
+The action has four modes based on cursor location (`dim.framework:103-216`):
+
+**Mode 1: Inside existing rule** (`dim.framework:106-134`)
+```xml
+<actionMode>
+  <field name="xpathCondition">
+    <String>ancestor-or-self::*[parent::*[contains(@class," topic/section ")][@audience="rules"]]</String>
+  </field>
+  <field name="argValues">
+    <serializableOrderedMap>
+      <entry>
+        <String>insertLocation</String>
+        <String>ancestor-or-self::*[parent::*[contains(@class," topic/section ")][@audience="rules"]]</String>
+      </entry>
+      <entry>
+        <String>insertPosition</String>
+        <String>After</String>
+      </entry>
+      <entry>
+        <String>libraryLocation</String>
+        <String>${pd}/info-model/rules/library.sch</String>
+      </entry>
+    </serializableOrderedMap>
+  </field>
+  <field name="operationID">
+    <String>com.oxygenxml.gim.operations.AddBusinessRuleOperation</String>
+  </field>
+</actionMode>
+```
+
+**Mode 2: In rules section** (`dim.framework:136-160`)
+- XPath: `.[contains(@class," topic/section ")][@audience="rules"]`
+- Position: Inside as first child
+
+**Mode 3: Document has rules section** (`dim.framework:162-186`)
+- XPath: `exists(//*[contains(@class," topic/section ")][@audience="rules"])`
+- Position: Inside as last child of existing section
+
+**Mode 4: No rules section** (`dim.framework:187-214`)
+- XPath: `true()` (always matches)
+- Creates new section with `<section audience="rules"/>`
+- Position: Inside as last child of topic body
+
+<Expandable title="Understanding XPath Conditions">
+
+Action modes are evaluated in order. The first matching `xpathCondition` determines which mode executes. This allows progressive fallback from most specific to most general context.
+
+The `${pd}` variable expands to the project directory, allowing rules to be stored alongside the style guide content.
+
+</Expandable>
+
+### Add Style Guide Link Action
+
+Inserts metadata linking topics to style guide entries (`dim.framework:229-425`).
+
+**Purpose**: Creates `<data>` elements in topic metadata to reference style guide sections.
+
+**Fragment Inserted**:
+```xml
+<data name="" value="" audience="styleguide"/>
+```
+
+The action intelligently places this in the appropriate location:
+1. After existing `<data>` elements
+2. Inside `<metadata>` if it exists
+3. Creates `<metadata>` inside `<prolog>` if needed
+4. Creates `<prolog>` with `<metadata>` if neither exists
+
+### Delete Element Action
+
+Simple operation to delete the current element (`dim.framework:426-482`):
+
+```xml
+<action>
+  <field name="id">
+    <String>delete.element</String>
+  </field>
+  <field name="operationID">
+    <String>ro.sync.ecss.extensions.commons.operations.DeleteElementOperation</String>
+  </field>
+</action>
+```
+
+## Toolbar Integration
+
+Actions are added to the Author mode toolbar (`dim.framework:483-541`):
+
+```xml
+<toolbarItem>
+  <field name="actionID">
+    <String>add.rule</String>
+  </field>
+</toolbarItem>
+<toolbarItem>
+  <field name="actionID">
+    <String>add.link</String>
+  </field>
+</toolbarItem>
+<toolbarSeparator/>
+```
+
+This places the DIM actions at the beginning of the toolbar, separated from standard DITA tools.
+
+## Java Extensions
+
+The DIM framework includes Java-based operations for advanced functionality.
+
+### AddBusinessRuleOperation
+
+Core operation for inserting business rules (`AddBusinessRuleOperation.java:38`).
+
+**Key Features**:
+
+1. **Library Loading**: Parses Schematron library to extract available rules
+2. **UI Integration**: Shows platform-specific dialog (Standalone or Eclipse)
+3. **Smart Insertion**: Determines correct insertion point based on context
+4. **Fragment Generation**: Creates DITA definition list structure
+
+#### Operation Arguments
+
+Defined at `AddBusinessRuleOperation.java:71-109`:
+
+```java
+arguments = new ArgumentDescriptor[] {
+  new ArgumentDescriptor(
+    LIBRARY_LOCATION, 
+    ArgumentDescriptor.TYPE_STRING, 
+    "The location of the abstract rules library."),
+      
+  new ArgumentDescriptor(
+    ARGUMENT_SURROUND_FRAGMENT_LOCATION,
+    ArgumentDescriptor.TYPE_FRAGMENT,
+    "A string representation of an XML fragment. The rule fragment will be wrapped "
+    + "in this string before putting it in the destination."),
+
+  new ArgumentDescriptor(
+    ARGUMENT_XPATH_LOCATION, 
+    ArgumentDescriptor.TYPE_XPATH_EXPRESSION, 
+    "An XPath expression indicating the insert location for the fragment."),
+
+  new ArgumentDescriptor(
+    ARGUMENT_RELATIVE_LOCATION, 
+    ArgumentDescriptor.TYPE_CONSTANT_LIST,
+    "The insert position relative to the node determined by the XPath expression.",
+    new String[] {
+      AuthorConstants.POSITION_BEFORE,
+      AuthorConstants.POSITION_INSIDE_FIRST,
+      AuthorConstants.POSITION_INSIDE_LAST,
+      AuthorConstants.POSITION_AFTER,
+    }, 
+    AuthorConstants.POSITION_INSIDE_FIRST)
+};
+```
+
+#### Execution Flow
+
+1. **Load Library** (`AddBusinessRuleOperation.java:142-145`)
+```java
+BusinessRuleLibrary rulesLibrary = BusinessRuleRepository.getInstance().loadLibrary(
+  authorAccess.getXMLUtilAccess(), 
+  library);
+```
+
+2. **Show Selection Dialog** (`AddBusinessRuleOperation.java:147-159`)
+```java
+BusinessRuleSelector businessRuleSelector = null;
+if (authorAccess.getWorkspaceAccess().isStandalone()) {
+  businessRuleSelector = new SABusinessRuleSelectDialog(
+    (JFrame) authorAccess.getWorkspaceAccess().getParentFrame());
+} else {
+  businessRuleSelector = new ECBusinessRuleSelectDialog(
+    (Shell) authorAccess.getWorkspaceAccess().getParentFrame());
+}
+
+BusinessRule selectedRule = businessRuleSelector.selectRule(rulesLibrary);
+```
+
+3. **Insert Wrapper Fragment** (`AddBusinessRuleOperation.java:172-184`)
+```java
+String fragment = (String) args.getArgumentValue(ARGUMENT_SURROUND_FRAGMENT_LOCATION);
+if (fragment != null) {
+  AuthorDocumentFragment xmlFragment = ctrl.createNewDocumentFragmentInContext(
+    fragment, insertionOffset);
+  ctrl.insertFragment(insertionOffset, xmlFragment);
+  
+  // Move insertion point inside wrapper
+  AuthorNode firstLeaf = AuthorNodeUtil.getFirstLeaf(xmlFragment);
+  if (firstLeaf != null) {
+    insertionOffset += firstLeaf.getStartOffset() + 1;
+  }
+}
+```
+
+4. **Generate Rule Definition List** (`AddBusinessRuleOperation.java:186-210`)
+```java
+StringBuilder xmlFragment = new StringBuilder();
+xmlFragment.append(
+  "<dl>\n" + 
+  "  <dlhead>\n" + 
+  "    <dthd>Rule</dthd>\n" + 
+  "    <ddhd>" + selectedRule.getRuleName() + "</ddhd>\n" +
+  "  </dlhead>\n");
+
+List<BusinessRuleParam> params = selectedRule.getParams();
+for (BusinessRuleParam param : params) {
+  xmlFragment.append(
+    "  <dlentry>\n" + 
+    "    <dt>" + param.getName() + "</dt>\n" + 
+    "    <dd></dd>\n" +  // User fills parameter value
+    "  </dlentry>\n");
+}
+xmlFragment.append("</dl>");
+
+ctrl.insertXMLFragment(xmlFragment.toString(), insertionOffset);
+```
+
+5. **Position Caret** (`AddBusinessRuleOperation.java:213-221`)
+```java
+AuthorNode dlNode = ctrl.getNodeAtOffset(insertionOffset + 1);
+AuthorNode[] findNodes = ctrl.findNodesByXPath(
+  "dlentry[1]/dd", dlNode, true, true, true, false);
+if (findNodes != null && findNodes.length > 0) {
+  authorAccess.getEditorAccess().setCaretPosition(
+    findNodes[0].getStartOffset() + 1);
+}
+```
+
+The caret is positioned in the first parameter's `<dd>` element for immediate editing.
+
+### Business Rule Model
+
+Rules are modeled as Java objects for programmatic access.
+
+#### BusinessRule Class
+
+Represents a single abstract pattern (`BusinessRule.java:16`):
+
+```java
+@XmlAccessorType(XmlAccessType.FIELD)
+@XmlRootElement(name="rule") 
+public class BusinessRule {
+  @XmlAttribute(name="name", required=true)
+  private String ruleName;
+
+  @XmlElementWrapper(name="parameters", 
+    namespace="http://oxygenxml.com/ns/schematron/params")
+  @XmlElements(@XmlElement(name="parameter", 
+    namespace="http://oxygenxml.com/ns/schematron/params"))
+  private List<BusinessRuleParam> params;
+  
+  @XmlAnyElement(DocHandler.class)
+  private String description;
+}
+```
+
+JAXB annotations enable automatic XML parsing from `library.sch`.
+
+#### BusinessRuleLibrary Class
+
+Container for all rules in a library (`BusinessRuleLibrary.java:13`):
+
+```java
+@XmlRootElement(name="rules") 
+public class BusinessRuleLibrary {
+  @XmlElement(name="rule")
+  private final List<BusinessRule> rules = new ArrayList<BusinessRule>();
+  
+  private transient long timestamp;  // For caching
+}
+```
+
+The `timestamp` field supports caching - libraries are only reparsed if modified.
+
+## Creating Custom Operations
+
+You can add your own Author operations to extend DIM functionality.
+
+### Step 1: Implement AuthorOperation
+
+```java
+package com.example.dim.custom;
+
+import ro.sync.ecss.extensions.api.*;
+
+public class CustomValidationOperation implements AuthorOperation {
+  
+  @Override
+  public String getDescription() {
+    return "Custom validation operation for style guide rules";
+  }
+  
+  @Override
+  public void doOperation(AuthorAccess authorAccess, ArgumentsMap args)
+      throws AuthorOperationException {
+    
+    AuthorDocumentController ctrl = authorAccess.getDocumentController();
+    
+    // Your custom logic here
+    // Access document structure, perform validation, modify content, etc.
+  }
+  
+  @Override
+  public ArgumentDescriptor[] getArguments() {
+    return new ArgumentDescriptor[] {
+      new ArgumentDescriptor(
+        "customParameter",
+        ArgumentDescriptor.TYPE_STRING,
+        "Description of parameter")
+    };
+  }
+}
+```
+
+### Step 2: Package as JAR
+
+1. Compile your operation class
+2. Package into JAR file
+3. Place in framework directory (e.g., `frameworks/dim/custom-operations.jar`)
+
+### Step 3: Add to Framework Classpath
+
+Create a new patch in your framework extension:
+
+```xml
+<poPatch>
+  <field name="fieldPath">
+    <String>classpath</String>
+  </field>
+  <field name="index">
+    <Integer>6</Integer>
+  </field>
+  <field name="value">
+    <String>${framework}/custom-operations.jar</String>
+  </field>
+  <field name="patchHandling">
+    <String>addIndex</String>
+  </field>
+</poPatch>
+```
+
+### Step 4: Create Action
+
+Add an action that invokes your operation:
+
+```xml
+<poPatch>
+  <field name="fieldPath">
+    <String>authorExtensionDescriptor/actionDescriptors</String>
+  </field>
+  <field name="index">
+    <Integer>69</Integer>
+  </field>
+  <field name="value">
+    <action>
+      <field name="id">
+        <String>custom.validation</String>
+      </field>
+      <field name="name">
+        <String>Custom Validation</String>
+      </field>
+      <field name="description">
+        <String>Run custom validation checks</String>
+      </field>
+      <field name="largeIconPath">
+        <String>${framework}/images/CustomValidation24.png</String>
+      </field>
+      <field name="actionModes">
+        <actionMode-array>
+          <actionMode>
+            <field name="xpathCondition">
+              <String>true()</String>
+            </field>
+            <field name="argValues">
+              <serializableOrderedMap>
+                <entry>
+                  <String>customParameter</String>
+                  <String>value</String>
+                </entry>
+              </serializableOrderedMap>
+            </field>
+            <field name="operationID">
+              <String>com.example.dim.custom.CustomValidationOperation</String>
+            </field>
+          </actionMode>
+        </actionMode-array>
+      </field>
+    </action>
+  </field>
+  <field name="patchHandling">
+    <String>addIndex</String>
+  </field>
+</poPatch>
+```
+
+## Advanced Customization Techniques
+
+### Context-Sensitive UI
+
+Use XPath conditions to show/hide actions based on context:
+
+```xml
+<actionMode>
+  <field name="xpathCondition">
+    <!-- Only show in concept topics -->
+    <String>ancestor-or-self::concept</String>
+  </field>
+  <field name="argValues">
+    <serializableOrderedMap>
+      <entry>
+        <String>topicType</String>
+        <String>concept</String>
+      </entry>
+    </serializableOrderedMap>
+  </field>
+  <field name="operationID">
+    <String>com.example.ConceptSpecificOperation</String>
+  </field>
+</actionMode>
+```
+
+### Dynamic Fragment Generation
+
+Operations can generate XML based on document state:
+
+```java
+@Override
+public void doOperation(AuthorAccess authorAccess, ArgumentsMap args)
+    throws AuthorOperationException {
+  
+  AuthorDocumentController ctrl = authorAccess.getDocumentController();
+  int caretOffset = authorAccess.getEditorAccess().getCaretOffset();
+  
+  // Analyze surrounding context
+  AuthorNode contextNode = ctrl.getNodeAtOffset(caretOffset);
+  String topicType = detectTopicType(contextNode);
+  
+  // Generate appropriate fragment
+  String fragment = generateFragment(topicType);
+  
+  // Insert
+  ctrl.insertXMLFragment(fragment, caretOffset);
+}
+
+private String detectTopicType(AuthorNode node) {
+  // Walk up tree to find topic element
+  while (node != null) {
+    String classAttr = node.getAttribute("class");
+    if (classAttr != null && classAttr.contains(" topic/topic ")) {
+      return node.getName();
+    }
+    node = node.getParent();
+  }
+  return "topic";
+}
+```
+
+### User Input Dialogs
+
+Show custom dialogs for complex operations:
+
+```java
+import javax.swing.*;
+
+@Override
+public void doOperation(AuthorAccess authorAccess, ArgumentsMap args)
+    throws AuthorOperationException {
+  
+  // Create custom dialog
+  JPanel panel = new JPanel();
+  panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
+  
+  JTextField ruleNameField = new JTextField(20);
+  JTextArea descriptionArea = new JTextArea(5, 20);
+  
+  panel.add(new JLabel("Rule Name:"));
+  panel.add(ruleNameField);
+  panel.add(new JLabel("Description:"));
+  panel.add(new JScrollPane(descriptionArea));
+  
+  int result = JOptionPane.showConfirmDialog(
+    (JFrame) authorAccess.getWorkspaceAccess().getParentFrame(),
+    panel,
+    "Configure Custom Rule",
+    JOptionPane.OK_CANCEL_OPTION);
+  
+  if (result == JOptionPane.OK_OPTION) {
+    String ruleName = ruleNameField.getText();
+    String description = descriptionArea.getText();
+    
+    // Generate and insert fragment
+    String fragment = buildRuleFragment(ruleName, description);
+    authorAccess.getDocumentController().insertXMLFragment(
+      fragment, 
+      authorAccess.getEditorAccess().getCaretOffset());
+  }
+}
+```
+
+## Framework Variables
+
+DIM uses several framework-specific variables:
+
+| Variable | Description | Example |
+|----------|-------------|---------|
+| `${framework}` | Path to framework directory | `/opt/oxygen/frameworks/dim` |
+| `${pd}` | Project directory | `/home/user/projects/styleguide` |
+| `${pdu}` | Project directory as URL | `file:/home/user/projects/styleguide` |
+| `${cfdu}` | Current file directory URL | `file:/home/user/projects/styleguide/topics` |
+
+These can be used in:
+- File paths for resources (CSS, images, JARs)
+- Operation arguments
+- XPath expressions (via `resolve-uri()`)
+
+## Deployment
+
+### Development Workflow
+
+1. **Edit framework**: Modify `dim.framework` in framework directory
+2. **Reload**: Use Options > Preferences > Document Type Association > DITA DIM > Edit > OK
+3. **Test**: Open a DITA document and verify changes
+4. **Iterate**: Repeat until satisfied
+
+### Distribution
+
+Package your customized framework:
+
+```bash
+cd frameworks
+zip -r dim-custom.zip dim/
+```
+
+Users install by:
+1. Extracting to their oXygen frameworks directory
+2. Restarting oXygen
+3. Framework appears in Document Type Association
+
+<Expandable title="Framework Versioning">
+
+Update the framework version to track changes:
+
+```xml
+<field name="name">
+  <String>DITA DIM v2.0</String>
+</field>
+<field name="description">
+  <String>DIM support for DITA - Enhanced Edition</String>
+</field>
+```
+
+This helps users identify which version they have installed.
+
+</Expandable>
+
+## Debugging Custom Operations
+
+### Enable Logging
+
+Add logging to your operations:
+
+```java
+import org.apache.log4j.Logger;
+
+public class CustomOperation implements AuthorOperation {
+  private static final Logger logger = 
+    Logger.getLogger(CustomOperation.class.getName());
+  
+  @Override
+  public void doOperation(AuthorAccess authorAccess, ArgumentsMap args)
+      throws AuthorOperationException {
+    
+    logger.info("CustomOperation invoked with args: " + args);
+    
+    try {
+      // Operation logic
+      logger.debug("Processing completed successfully");
+    } catch (Exception e) {
+      logger.error("Operation failed", e);
+      throw new AuthorOperationException("Operation failed: " + e.getMessage(), e);
+    }
+  }
+}
+```
+
+View logs in oXygen's console: Help > Show Console
+
+### Exception Handling
+
+Provide meaningful error messages:
+
+```java
+try {
+  AuthorNode node = ctrl.getNodeAtOffset(offset);
+  if (node == null) {
+    throw new AuthorOperationException(
+      "No node found at offset " + offset + ". " +
+      "Ensure the cursor is positioned within an element.");
+  }
+} catch (BadLocationException e) {
+  throw new AuthorOperationException(
+    "Invalid document position. The document may have been modified.", e);
+}
+```
+
+## Best Practices
+
+### Performance
+
+1. **Cache expensive operations**: Store parsed libraries, compiled XPath expressions
+2. **Minimize document traversal**: Use specific XPath rather than scanning entire tree
+3. **Batch modifications**: Group multiple changes in a single operation
+
+### User Experience
+
+1. **Provide feedback**: Show progress for long operations
+2. **Validate input**: Check user-entered values before processing
+3. **Graceful degradation**: Handle missing resources, optional features
+4. **Keyboard shortcuts**: Assign accelerators to frequently-used actions
+
+### Maintainability
+
+1. **Document operations**: Use clear descriptions and parameter docs
+2. **Version compatibility**: Test with multiple oXygen versions
+3. **Error recovery**: Don't leave documents in inconsistent state
+4. **Modular design**: Separate concerns (UI, business logic, document manipulation)
+
+## Resources
+
+- [oXygen SDK Documentation](https://www.oxygenxml.com/oxygen_sdk.html)
+- [Author API Javadoc](https://www.oxygenxml.com/InstData/Editor/SDK/javadoc/)
+- [Framework Development Guide](https://www.oxygenxml.com/doc/versions/latest/ug-editor/topics/framework-customization-script.html)
+
+## Next Steps
+
+- Review [Schematron patterns](/advanced/schematron-patterns) for validation logic
+- Learn [custom rule creation](/advanced/custom-rules) for new validation patterns
+- Explore the [API reference](/api-reference/business-rule) for programmatic access

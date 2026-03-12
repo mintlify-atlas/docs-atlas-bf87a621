@@ -1,0 +1,259 @@
+---
+title: 'gen-rules.xsl'
+description: 'Generate Schematron rules from DITA style guide topics'
+---
+
+## Overview
+
+The `gen-rules.xsl` stylesheet is the core transformation script that extracts business rules from DITA topics and generates a Schematron schema file for automated validation. It processes a DITA map and all referenced topics to identify sections marked with `audience="rules"` and converts them into Schematron patterns.
+
+**Location**: `gen-rules/gen-rules.xsl`
+
+## Purpose
+
+This transformation enables the Dynamic Information Model to:
+- Extract validation rules embedded in style guide documentation
+- Generate executable Schematron schemas automatically
+- Maintain synchronization between documentation and validation rules
+- Create instance patterns from abstract Schematron patterns
+
+## Input Requirements
+
+<ParamField path="Input Document" type="DITA Map or Topic" required>
+  A DITA map or topic file that references topics containing business rules. The transformation processes the entire map structure recursively.
+</ParamField>
+
+### Expected Structure
+
+Topics must contain sections with `audience="rules"` that define rule patterns:
+
+```xml
+<section audience="rules">
+  <title>Business Rules</title>
+  <dl>
+    <dlhead>
+      <dthd>Rule</dthd>
+      <ddhd>recommendElementInParent</ddhd>
+    </dlhead>
+    <dlentry>
+      <dt>parent</dt>
+      <dd>task</dd>
+    </dlentry>
+    <dlentry>
+      <dt>element</dt>
+      <dd>prolog</dd>
+    </dlentry>
+    <dlentry>
+      <dt>message</dt>
+      <dd>A prolog is required for each task.</dd>
+    </dlentry>
+  </dl>
+</section>
+```
+
+## Output
+
+<ParamField path="rules/rules.sch" type="Schematron Schema">
+  A complete Schematron schema file containing all instantiated validation patterns with references back to the source documentation.
+</ParamField>
+
+### Generated Schema Structure
+
+```xml
+<schema queryBinding="xslt2">
+  <!-- Includes for abstract patterns from library -->
+  <include href="library.sch#recommendElementInParent"/>
+  <include href="quickFix-library.xml"/>
+  
+  <!-- Generated from c_BeginningATopic.dita -->
+  <pattern is-a="recommendElementInParent" 
+           see="http://example.com/styleguide/webhelp/info-model/c_BeginningATopic.html">
+    <param name="parent" value="task"/>
+    <param name="element" value="prolog"/>
+    <param name="message" value="A prolog is required for each task. Add this just before the task body."/>
+  </pattern>
+</schema>
+```
+
+## Variables
+
+<ParamField path="library" type="URI">
+  Resolves to the location of `rules/library.sch` containing abstract Schematron patterns.
+  
+  **Default**: `resolve-uri('rules/library.sch', base-uri(/))`
+</ParamField>
+
+<ParamField path="base" type="URI">
+  Base URI for resolving relative paths and constructing documentation links.
+  
+  **Default**: `resolve-uri('.', base-uri(/))`
+</ParamField>
+
+## Template Rules
+
+### Root Template (/)
+
+Generates the main Schematron schema file and coordinates the transformation process.
+
+```xml
+<xsl:template match="/">
+  <xsl:result-document href="{$base}rules/rules.sch">
+    <schema queryBinding="xslt2">
+      <xsl:apply-templates select="document($library)" mode="generateIncludes"/>
+      <include href="quickFix-library.xml"/>
+      <xsl:apply-templates mode="rules"/>
+    </schema>
+  </xsl:result-document>
+</xsl:template>
+```
+
+### Topic Reference Processing (mode="rules")
+
+Recursively processes DITA map topic references and loads referenced topics.
+
+```xml
+<xsl:template match="*[contains(@class, ' map/topicref ')]" mode="rules">
+  <xsl:apply-templates select="document(@href, .)" mode="rules"/>
+  <xsl:apply-templates mode="rules"/>
+</xsl:template>
+```
+
+### Rule Section Processing (mode="rules")
+
+Identifies and processes definition lists within rule sections.
+
+```xml
+<xsl:template match="section[@audience='rules']/dl" mode="rules">
+  <xsl:apply-templates select="." mode="instantiate"/>
+</xsl:template>
+```
+
+### Pattern Instantiation (mode="instantiate")
+
+Converts DITA definition lists into Schematron pattern instances.
+
+<ParamField path="is-a" type="Attribute">
+  The abstract pattern name from `<ddhd>` element
+</ParamField>
+
+<ParamField path="see" type="Attribute">
+  Generated URL pointing to the documentation source
+</ParamField>
+
+```xml
+<xsl:template match="dl" mode="instantiate">
+  <xsl:variable name="origin" select="substring-after(base-uri(.), $base)"/>
+  <xsl:variable name="target">
+    <xsl:text>http://example.com/styleguide/webhelp/</xsl:text>
+    <xsl:value-of select="replace($origin, '.dita', '.html')"/>
+  </xsl:variable>
+  <pattern is-a="{dlhead/ddhd}" see="{$target}">
+    <xsl:apply-templates mode="instantiate"/>
+  </pattern>
+</xsl:template>
+```
+
+### Parameter Generation (mode="instantiate")
+
+Converts definition list entries into Schematron parameters, handling apostrophes in values.
+
+```xml
+<xsl:template match="dlentry" mode="instantiate">
+  <xsl:variable name="ap">'</xsl:variable>
+  <xsl:variable name="doubleap">''</xsl:variable>
+  <param name="{dt}" value="{replace(dd, $ap, $doubleap)}"/>
+</xsl:template>
+```
+
+### Include Generation (mode="generateIncludes")
+
+Creates include directives for all abstract patterns from the library.
+
+```xml
+<xsl:template match="iso:pattern[@abstract='true']" mode="generateIncludes">
+  <include href="library.sch#{@id}"/>
+</xsl:template>
+```
+
+## Usage Example
+
+### Running the Transformation
+
+```bash
+# Using Saxon XSLT processor
+saxon -s:info-model/styleguide.ditamap \
+      -xsl:gen-rules/gen-rules.xsl \
+      -o:output.xml
+```
+
+### Input DITA Topic
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<concept id="TitlingTopics">
+  <title>Titling Topics</title>
+  <conbody>
+    <p>Guidelines for writing effective topic titles.</p>
+    <section audience="rules">
+      <title>Business Rules</title>
+      <dl>
+        <dlhead>
+          <dthd>Rule</dthd>
+          <ddhd>restrictWords</ddhd>
+        </dlhead>
+        <dlentry>
+          <dt>context</dt>
+          <dd>*[contains(@class, ' topic/title ')]</dd>
+        </dlentry>
+        <dlentry>
+          <dt>maxWords</dt>
+          <dd>8</dd>
+        </dlentry>
+        <dlentry>
+          <dt>message</dt>
+          <dd>Title should not exceed 8 words.</dd>
+        </dlentry>
+      </dl>
+    </section>
+  </conbody>
+</concept>
+```
+
+### Generated Schematron Output
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<schema xmlns="http://purl.oclc.org/dsdl/schematron" queryBinding="xslt2">
+  <!-- Do not edit this file directly!
+       This file is generated automatically by processing info-model/styleguide.ditamap -->
+  
+  <include href="library.sch#restrictWords"/>
+  <include href="quickFix-library.xml"/>
+  
+  <!-- Generated from info-model/c_TitlingTopics.dita -->
+  <pattern is-a="restrictWords" 
+           see="http://example.com/styleguide/webhelp/info-model/c_TitlingTopics.html">
+    <param name="context" value="*[contains(@class, ' topic/title ')]"/>
+    <param name="maxWords" value="8"/>
+    <param name="message" value="Title should not exceed 8 words."/>
+  </pattern>
+</schema>
+```
+
+## Key Features
+
+- **Automatic Rule Extraction**: Scans all topics in a DITA map for rule sections
+- **Documentation Links**: Maintains bidirectional links between rules and documentation
+- **Quote Handling**: Properly escapes apostrophes in parameter values for XPath expressions
+- **Library Integration**: Automatically includes all abstract patterns from the rule library
+- **Incremental Generation**: Preserves manual edits to `quickFix-library.xml`
+
+## Related Scripts
+
+- [gen-mappings.xsl](/api/gen-mappings) - Generates content completion mappings
+- [dim2sch.xsl](/api/dim2sch) - Alternative transformation for embedded library patterns
+
+## See Also
+
+- Abstract pattern definitions: `rules/library.sch`
+- Quick fix library: `rules/quickFix-library.xml`

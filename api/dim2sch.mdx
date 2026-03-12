@@ -1,0 +1,392 @@
+---
+title: 'dim2sch.xsl'
+description: 'Convert DIM style guide to standalone Schematron with embedded library patterns'
+---
+
+## Overview
+
+The `dim2sch.xsl` stylesheet is an alternative transformation that generates a complete, standalone Schematron schema by embedding abstract patterns directly into the output rather than using external includes. This approach creates a self-contained validation schema that can be distributed and used independently of the rule library files.
+
+**Location**: `gen-rules/dim2sch.xsl`
+
+## Purpose
+
+This transformation provides:
+- **Standalone Schemas**: Generate self-contained Schematron files with no external dependencies
+- **Embedded Patterns**: Include abstract pattern definitions directly in the output schema
+- **Distribution Support**: Create schemas that can be shared without the complete DIM framework
+- **URN Resolution**: Support URN-based resource references for catalog-driven systems
+
+## Differences from gen-rules.xsl
+
+| Feature | gen-rules.xsl | dim2sch.xsl |
+|---------|---------------|-------------|
+| Abstract patterns | External includes | Embedded copies |
+| Library reference | File path | URN reference |
+| Output structure | Schema with includes | Standalone schema |
+| Dependencies | Requires library.sch | Self-contained |
+| Use case | Framework deployment | Standalone distribution |
+
+## Input Requirements
+
+<ParamField path="Input Document" type="DITA Bookmap" required>
+  A DITA bookmap (specifically matched with priority) containing topics with business rules. The transformation is optimized for bookmap structures but can process other map types.
+</ParamField>
+
+### Special Handling
+
+- **Bookmap Priority**: Template matching `<bookmap>` has priority 100 for preferred processing
+- **Passthrough Mode**: Non-bookmap root elements are copied unchanged
+- **URN References**: Uses URN-based references (`urn:rules:library.sch`) for catalog resolution
+
+### Expected Topic Structure
+
+Same as gen-rules.xsl - topics with `audience="rules"` sections:
+
+```xml
+<section audience="rules">
+  <title>Business Rules</title>
+  <dl>
+    <dlhead>
+      <dthd>Rule</dthd>
+      <ddhd>recommendElementInParent</ddhd>
+    </dlhead>
+    <dlentry>
+      <dt>parent</dt>
+      <dd>concept</dd>
+    </dlentry>
+    <dlentry>
+      <dt>element</dt>
+      <dd>prolog</dd>
+    </dlentry>
+    <dlentry>
+      <dt>message</dt>
+      <dd>A prolog is required for each concept.</dd>
+    </dlentry>
+  </dl>
+</section>
+```
+
+## Output
+
+<ParamField path="Standard Output" type="Schematron Schema">
+  A complete, standalone Schematron schema written to standard output (not a separate file like gen-rules.xsl). Contains both pattern instances and abstract pattern definitions.
+</ParamField>
+
+### Generated Schema Structure
+
+```xml
+<schema xmlns="http://purl.oclc.org/dsdl/schematron" queryBinding="xslt2">
+  <!-- Pattern instances from DITA topics -->
+  <pattern is-a="recommendElementInParent" 
+           see="http://example.com/styleguide/webhelp/info-model/c_BeginningATopic.html">
+    <param name="parent" value="concept"/>
+    <param name="element" value="prolog"/>
+    <param name="message" value="A prolog is required for each concept."/>
+  </pattern>
+  
+  <!-- Embedded abstract patterns from library -->
+  <pattern abstract="true" id="recommendElementInParent">
+    <rule context="$parent">
+      <assert test="$element" role="warn">
+        <value-of select="$message"/>
+      </assert>
+    </rule>
+  </pattern>
+  
+  <!-- Quick fix library embedded -->
+  <pattern id="quickFixes">
+    ...
+  </pattern>
+</schema>
+```
+
+## Variables
+
+<ParamField path="library" type="URN">
+  URN reference to the abstract pattern library for catalog-based resolution.
+  
+  **Default**: `'urn:rules:library.sch'`
+  
+  **Note**: Uses URN instead of file path for portable catalog resolution
+</ParamField>
+
+<ParamField path="base" type="URI">
+  Base URI for resolving relative paths and constructing documentation links.
+  
+  **Default**: `resolve-uri('.', base-uri(/))`
+</ParamField>
+
+## Template Rules
+
+### Bookmap Root Template
+
+High-priority template that generates the complete standalone schema.
+
+```xml
+<xsl:template match="/bookmap" priority="100">
+  <schema queryBinding="xslt2">
+    <!-- Process DITA topics to generate pattern instances -->
+    <xsl:apply-templates mode="rules"/>
+    
+    <!-- Embed abstract patterns from library -->
+    <xsl:apply-templates select="document($library)" mode="includesGenericRules"/>
+    
+    <!-- Embed quick fix library -->
+    <xsl:copy-of select="document('urn:rules:quickFix-library.xml')"/>
+  </schema>
+</xsl:template>
+```
+
+**Key Differences**:
+- No `<xsl:result-document>` - outputs to stdout
+- Abstract patterns are embedded with `<xsl:copy-of>` instead of includes
+- Processes rules first, then adds library patterns
+
+### Passthrough Template
+
+Handles non-bookmap documents by copying them unchanged.
+
+```xml
+<xsl:template match="/*">
+  <xsl:copy-of select="."/>
+</xsl:template>
+```
+
+### Topic Reference Processing (mode="rules")
+
+Recursively processes topic references with enhanced debugging comments.
+
+```xml
+<xsl:template match="*[contains(@class, ' map/topicref ')]" mode="rules">
+  <xsl:if test="@href">
+    <xsl:comment>
+      <xsl:value-of select="@href"/>
+      (<xsl:value-of select="base-uri(.)"/>)
+      [<xsl:value-of select="base-uri(document(@href, .))"/>]
+    </xsl:comment>
+    <xsl:apply-templates select="document(@href, .)" mode="rules"/>
+  </xsl:if>
+  <xsl:apply-templates mode="rules"/>
+</xsl:template>
+```
+
+**Debug Information**: Includes comments showing the href, base URI of the map, and resolved URI of the topic.
+
+### Rule Section Processing (mode="rules")
+
+Identical to gen-rules.xsl - identifies and processes rule definition lists.
+
+```xml
+<xsl:template match="section[@audience='rules']/dl" mode="rules">
+  <xsl:apply-templates select="." mode="instantiate"/>
+</xsl:template>
+```
+
+### Pattern Instantiation (mode="instantiate")
+
+Converts DITA definition lists into Schematron pattern instances.
+
+```xml
+<xsl:template match="dl" mode="instantiate">
+  <xsl:variable name="origin" select="substring-after(base-uri(.), $base)"/>
+  <xsl:variable name="target">
+    <xsl:text>http://example.com/styleguide/webhelp/</xsl:text>
+    <xsl:value-of select="replace($origin, '.dita', '.html')"/>
+  </xsl:variable>
+  <pattern is-a="{dlhead/ddhd}" see="{$target}">
+    <xsl:apply-templates mode="instantiate"/>
+  </pattern>
+</xsl:template>
+```
+
+### Parameter Generation (mode="instantiate")
+
+Converts definition list entries into parameters without quote escaping.
+
+```xml
+<xsl:template match="dlentry" mode="instantiate">
+  <param name="{dt}" value="{dd}"/>
+</xsl:template>
+```
+
+**Note**: Unlike gen-rules.xsl, this version does not escape apostrophes. Ensure parameter values are properly formatted in source DITA.
+
+### Abstract Pattern Inclusion (mode="includesGenericRules")
+
+Embeds abstract patterns by copying them directly into the output.
+
+```xml
+<xsl:template match="text()" mode="includesGenericRules"/>
+
+<xsl:template match="iso:pattern[@abstract='true']" mode="includesGenericRules">
+  <xsl:copy-of select="."/>
+</xsl:template>
+```
+
+**Key Difference**: Uses `<xsl:copy-of>` to embed the entire pattern definition rather than creating an include reference.
+
+## Usage Example
+
+### Running the Transformation
+
+```bash
+# Using Saxon XSLT processor with catalog for URN resolution
+saxon -s:info-model/styleguide.ditamap \
+      -xsl:gen-rules/dim2sch.xsl \
+      -o:standalone-rules.sch \
+      -catalog:catalog.xml
+```
+
+### XML Catalog Configuration
+
+For URN resolution, configure a catalog:
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<catalog xmlns="urn:oasis:names:tc:entity:xmlns:xml:catalog">
+  <uri name="urn:rules:library.sch" 
+       uri="rules/library.sch"/>
+  <uri name="urn:rules:quickFix-library.xml" 
+       uri="rules/quickFix-library.xml"/>
+</catalog>
+```
+
+### Input DITA Bookmap
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<bookmap id="styleguide">
+  <title>Style Guide</title>
+  <chapter href="info-model/c_TitlingTopics.dita"/>
+  <chapter href="info-model/c_BeginningATopic.dita"/>
+</bookmap>
+```
+
+### Generated Standalone Schema
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<schema xmlns="http://purl.oclc.org/dsdl/schematron" 
+        xmlns:iso="http://purl.oclc.org/dsdl/schematron"
+        queryBinding="xslt2">
+  
+  <!-- info-model/c_TitlingTopics.dita
+       (/home/user/styleguide/styleguide.ditamap)
+       [/home/user/styleguide/info-model/c_TitlingTopics.dita] -->
+  <!-- Generated from info-model/c_TitlingTopics.dita. -->
+  <pattern is-a="restrictWords" 
+           see="http://example.com/styleguide/webhelp/info-model/c_TitlingTopics.html">
+    <param name="context" value="*[contains(@class, ' topic/title ')]"/>
+    <param name="maxWords" value="8"/>
+    <param name="message" value="Title should not exceed 8 words."/>
+  </pattern>
+  
+  <!-- info-model/c_BeginningATopic.dita
+       (/home/user/styleguide/styleguide.ditamap)
+       [/home/user/styleguide/info-model/c_BeginningATopic.dita] -->
+  <!-- Generated from info-model/c_BeginningATopic.dita. -->
+  <pattern is-a="recommendElementInParent" 
+           see="http://example.com/styleguide/webhelp/info-model/c_BeginningATopic.html">
+    <param name="parent" value="concept"/>
+    <param name="element" value="prolog"/>
+    <param name="message" value="A prolog is required for each concept."/>
+  </pattern>
+  
+  <!-- Embedded abstract patterns from library.sch -->
+  <pattern abstract="true" id="restrictWords">
+    <rule context="$context">
+      <let name="words" value="count(tokenize(normalize-space(.), '\s+'))"/>
+      <assert test="$words &lt;= $maxWords" role="warn">
+        <value-of select="$message"/>
+        Found <value-of select="$words"/> words.
+      </assert>
+    </rule>
+  </pattern>
+  
+  <pattern abstract="true" id="recommendElementInParent">
+    <rule context="$parent">
+      <assert test="$element" role="warn">
+        <value-of select="$message"/>
+      </assert>
+    </rule>
+  </pattern>
+  
+  <!-- Embedded quick fix library -->
+  <pattern id="quickFixes">
+    <rule context="task[not(prolog)]">
+      <sqf:fix id="addProlog">
+        <sqf:description>
+          <sqf:title>Add prolog element</sqf:title>
+        </sqf:description>
+        <sqf:add node-type="element" target="prolog" position="before"
+                 select="taskbody"/>
+      </sqf:fix>
+    </rule>
+  </pattern>
+</schema>
+```
+
+## Use Cases
+
+### Standalone Distribution
+
+When you need to distribute validation rules without the complete DIM framework:
+
+```bash
+# Generate standalone schema
+saxon -s:styleguide.ditamap -xsl:dim2sch.xsl -o:validation-rules.sch
+
+# Distribute single file
+cp validation-rules.sch /path/to/deployment/
+```
+
+### CI/CD Pipelines
+
+For automated validation in build systems:
+
+```bash
+#!/bin/bash
+# Generate fresh validation schema
+saxon -s:styleguide.ditamap -xsl:dim2sch.xsl -o:current-rules.sch
+
+# Validate DITA content
+schematron-validate current-rules.sch content/*.dita
+```
+
+### Version Control
+
+Track complete rule definitions in version control:
+
+```bash
+# Generate dated schema snapshots
+saxon -s:styleguide.ditamap -xsl:dim2sch.xsl \
+      -o:schemas/rules-$(date +%Y%m%d).sch
+```
+
+## Key Features
+
+- **Self-Contained Output**: No external file dependencies
+- **Bookmap Optimization**: Priority template for bookmap structures
+- **URN Resolution**: Catalog-based resource location
+- **Debug Comments**: Enhanced tracing of topic processing
+- **Standard Output**: Direct schema output without result documents
+- **Pattern Embedding**: Complete abstract pattern definitions included
+
+## Limitations
+
+- **No Quote Escaping**: Parameter values with apostrophes must be pre-escaped in DITA source
+- **Single Output**: Cannot generate multiple result documents
+- **Bookmap Focus**: Optimized for bookmap structure, other map types pass through unchanged
+- **Catalog Dependency**: Requires XML catalog configuration for URN resolution
+
+## Related Scripts
+
+- [gen-rules.xsl](/api/gen-rules) - Generate schema with external includes
+- [gen-mappings.xsl](/api/gen-mappings) - Generate content completion mappings
+
+## See Also
+
+- Abstract pattern definitions: `rules/library.sch` (URN: `urn:rules:library.sch`)
+- Quick fix library: `rules/quickFix-library.xml` (URN: `urn:rules:quickFix-library.xml`)
+- XML Catalog specification: OASIS Entity Resolution

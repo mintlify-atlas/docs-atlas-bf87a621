@@ -1,0 +1,229 @@
+---
+title: Operations
+description: Author operations for adding and managing business rules in DITA documents
+---
+
+Operations provide extensibility points for adding business rules to DITA documents within the Oxygen XML Author mode.
+
+## AddBusinessRuleOperation
+
+An Oxygen Author operation that allows users to select and insert business rules into DITA documents. It presents a dialog for rule selection and inserts the rule with parameter placeholders.
+
+### Constructor
+
+```java
+public AddBusinessRuleOperation()
+```
+
+Initializes the operation with its argument descriptors.
+
+### Arguments
+
+The operation accepts the following arguments that can be configured in the Oxygen framework:
+
+<ParamField path="libraryLocation" type="String" required>
+  The location of the abstract rules library (Schematron file). Supports editor variables like `${framework}` or `${pdu}`.
+</ParamField>
+
+<ParamField path="surroundFragment" type="Fragment">
+  An XML fragment that wraps the inserted rule. The rule content will be placed inside this wrapper element.
+</ParamField>
+
+<ParamField path="insertLocation" type="XPath Expression">
+  An XPath expression indicating where to insert the rule fragment. If not specified, inserts at the current caret position.
+</ParamField>
+
+<ParamField path="insertPosition" type="Constant">
+  The position relative to the node determined by the XPath expression. Valid values:
+  - `Before` - Insert before the target node
+  - `Inside first` - Insert as first child (default)
+  - `Inside last` - Insert as last child
+  - `After` - Insert after the target node
+  
+  Ignored if `insertLocation` is not defined.
+</ParamField>
+
+### Methods
+
+#### getDescription()
+
+<ResponseField name="return" type="String">
+  Returns the operation description
+</ResponseField>
+
+```java
+public String getDescription()
+```
+
+#### doOperation(AuthorAccess, ArgumentsMap)
+
+Executes the operation: loads the library, presents the selection dialog, and inserts the chosen rule.
+
+<ParamField path="authorAccess" type="AuthorAccess" required>
+  Access to the Oxygen Author API
+</ParamField>
+
+<ParamField path="args" type="ArgumentsMap" required>
+  Map containing the operation arguments
+</ParamField>
+
+<ResponseField name="throws" type="IllegalArgumentException">
+  If required arguments are missing or invalid
+</ResponseField>
+
+<ResponseField name="throws" type="AuthorOperationException">
+  If the operation fails (library loading, user cancellation, or insertion error)
+</ResponseField>
+
+```java
+public void doOperation(
+    AuthorAccess authorAccess, 
+    ArgumentsMap args
+) throws IllegalArgumentException, AuthorOperationException
+```
+
+#### getArguments()
+
+<ResponseField name="return" type="ArgumentDescriptor[]">
+  Returns the array of argument descriptors for this operation
+</ResponseField>
+
+```java
+public ArgumentDescriptor[] getArguments()
+```
+
+### Behavior
+
+When executed, the operation performs these steps:
+
+1. **Loads the library**: Expands editor variables in the library location and loads the Schematron rules
+2. **Presents dialog**: Shows either `SABusinessRuleSelectDialog` (standalone) or `ECBusinessRuleSelectDialog` (Eclipse) based on the platform
+3. **User selection**: User searches for and selects a rule from the library
+4. **Inserts wrapper**: If `surroundFragment` is specified, inserts the wrapper fragment first
+5. **Generates content**: Creates a DITA definition list (`<dl>`) with the rule name and parameter placeholders
+6. **Positions caret**: Places the caret in the first parameter value field for immediate editing
+
+### Generated XML Structure
+
+The operation generates DITA definition lists with this structure:
+
+```xml
+<dl>
+  <dlhead>
+    <dthd>Rule</dthd>
+    <ddhd>rule-name-here</ddhd>
+  </dlhead>
+  <dlentry>
+    <dt>parameter1</dt>
+    <dd></dd>
+  </dlentry>
+  <dlentry>
+    <dt>parameter2</dt>
+    <dd></dd>
+  </dlentry>
+</dl>
+```
+
+### Framework Configuration Example
+
+Configure the operation in your Oxygen framework's actions:
+
+```xml
+<action id="insert.business.rule">
+  <name>Insert Business Rule</name>
+  <description>Insert a business rule from the library</description>
+  
+  <operation>
+    <name>com.oxygenxml.gim.operations.AddBusinessRuleOperation</name>
+    
+    <argument name="libraryLocation">
+      <value>${framework}/rules/business-rules.sch</value>
+    </argument>
+    
+    <argument name="surroundFragment">
+      <value>&lt;section&gt;
+        &lt;title&gt;Business Rules&lt;/title&gt;
+        ${caret}
+      &lt;/section&gt;</value>
+    </argument>
+    
+    <argument name="insertLocation">
+      <value>//body</value>
+    </argument>
+    
+    <argument name="insertPosition">
+      <value>Inside last</value>
+    </argument>
+  </operation>
+</action>
+```
+
+### Usage Example
+
+```java
+// The operation is typically invoked through the Oxygen framework,
+// but can be used programmatically:
+
+AddBusinessRuleOperation operation = new AddBusinessRuleOperation();
+
+ArgumentsMap args = new ArgumentsMap();
+args.put("libraryLocation", "file:///path/to/rules.sch");
+args.put("insertLocation", "//section[@outputclass='rules']");
+args.put("insertPosition", "Inside last");
+
+try {
+    operation.doOperation(authorAccess, args);
+} catch (AuthorOperationException e) {
+    // Handle error
+    e.printStackTrace();
+}
+```
+
+## BusinessRuleSelector Interface
+
+Common interface for rule selection dialogs across different platforms.
+
+### Methods
+
+#### selectRule(BusinessRuleLibrary)
+
+Displays a dialog for selecting a rule from the given library.
+
+<ParamField path="businessRuleLibrary" type="BusinessRuleLibrary" required>
+  The library of rules to choose from
+</ParamField>
+
+<ResponseField name="return" type="BusinessRule">
+  The selected rule, or `null` if the user cancelled
+</ResponseField>
+
+```java
+public BusinessRule selectRule(BusinessRuleLibrary businessRuleLibrary)
+```
+
+### Implementations
+
+- **ECBusinessRuleSelectDialog**: Eclipse SWT-based dialog for Eclipse plugin
+- **SABusinessRuleSelectDialog**: Swing-based dialog for standalone Oxygen application
+
+### Example
+
+```java
+// Automatically selected based on platform
+BusinessRuleSelector selector;
+if (authorAccess.getWorkspaceAccess().isStandalone()) {
+    selector = new SABusinessRuleSelectDialog(
+        (JFrame) authorAccess.getWorkspaceAccess().getParentFrame()
+    );
+} else {
+    selector = new ECBusinessRuleSelectDialog(
+        (Shell) authorAccess.getWorkspaceAccess().getParentFrame()
+    );
+}
+
+BusinessRule selected = selector.selectRule(library);
+if (selected != null) {
+    // User selected a rule
+    System.out.println("Selected: " + selected.getRuleName());
+}
+```

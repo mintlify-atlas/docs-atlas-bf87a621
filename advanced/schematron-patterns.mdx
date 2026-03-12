@@ -1,0 +1,351 @@
+---
+title: "Schematron Abstract Patterns"
+description: "Deep dive into Schematron abstract patterns in DIM, their parameters, and creating custom patterns"
+---
+
+## Overview
+
+DIM's validation power comes from Schematron abstract patterns defined in the `library.sch` file. Abstract patterns are reusable validation templates that can be instantiated with different parameters to create specific business rules.
+
+## Understanding Abstract Patterns
+
+Abstract patterns in Schematron work like function templates. They define validation logic with placeholders (parameters) that get replaced when the pattern is instantiated.
+
+### Pattern Structure
+
+Every abstract pattern in DIM follows this structure:
+
+```xml
+<pattern abstract="true" id="patternId">
+  <title>Human-readable title</title>
+  <p>Description of what this pattern does</p>
+  <parameters xmlns="http://oxygenxml.com/ns/schematron/params">
+    <parameter>
+      <name>parameterName</name>
+      <desc>Parameter description</desc>
+    </parameter>
+  </parameters>
+  <rule context="$element">
+    <assert test="validation-xpath">
+      $message
+    </assert>
+  </rule>
+</pattern>
+```
+
+## Built-in Patterns
+
+DIM provides several abstract patterns in `library.sch`. Here's a detailed look at key patterns:
+
+### avoidWordInElement
+
+Checks if a word or phrase appears inside specified elements (case-insensitive).
+
+**Location**: `library.sch:5-39`
+
+**Parameters**:
+- `element` - Element(s) to check (pipe-separated for multiple)
+- `word` - Word or phrase to avoid
+- `message` - Custom validation message
+
+**Implementation**:
+```xml
+<rule context="$element">
+  <assert test="not(matches(., '(\s|^)($word)(\s|$)', 'i'))"
+    role="warn" sqf:fix="avoidWordInElement_deleteWord avoidWordInElement_replaceWord">
+    $message
+  </assert>
+</rule>
+```
+
+The regex `(\s|^)($word)(\s|$)` ensures word boundaries are respected.
+
+<Expandable title="QuickFixes Available">
+
+**avoidWordInElement_deleteWord** (`quickFix-library.xml:24-35`)
+- Deletes the matched word while preserving surrounding whitespace
+- Uses conditional logic to handle edge cases (start/end of text)
+
+**avoidWordInElement_replaceWord** (`quickFix-library.xml:36-50`)
+- Prompts user for replacement text
+- Uses case-insensitive regex replacement
+
+</Expandable>
+
+### restrictWords
+
+Validates that word count falls within specified limits.
+
+**Location**: `library.sch:139-184`
+
+**Parameters**:
+- `parentElement` - Element whose words to count
+- `minWords` - Minimum word count
+- `maxWords` - Maximum word count
+- `message` - Additional message text
+
+**Key Implementation Detail**:
+```xml
+<let name="words" value="count(tokenize(normalize-space(.), ' '))"/>
+```
+
+The pattern uses `tokenize()` to split on spaces after normalizing whitespace, providing accurate word counts.
+
+### restrictCharacters
+
+Similar to `restrictWords` but counts characters with normalization control.
+
+**Location**: `library.sch:186-243`
+
+**Unique Feature**: The `normalize` parameter controls whitespace handling:
+
+```xml
+<let name="characters" value="string-length(
+  if ($normalize = ('true', 'true()', 'yes')) 
+  then normalize-space(.) 
+  else .)"/>
+```
+
+This allows both normalized and raw character counting.
+
+### restrictNesting
+
+Prevents excessive nesting of elements.
+
+**Location**: `library.sch:246-279`
+
+**Implementation**:
+```xml
+<rule context="$element">
+  <assert test="count(ancestor::$element) &lt;= $maxNestingLevel">
+    $message
+  </assert>
+</rule>
+```
+
+Counts ancestors with the same element name to enforce nesting limits.
+
+## DITA-Specific Patterns
+
+Patterns with the `dita-` prefix are specialized for DITA documents:
+
+### dita-allowedElementsForClass
+
+Validates element names based on DITA class attributes.
+
+**Location**: `library.sch:433-466`
+
+**How it works**:
+```xml
+<rule context="*[contains(@class, ' $elementClass ')]">
+  <let name="elements" 
+    value="tokenize(translate(normalize-space('$allowedElementNames'), ' ', ''), ',')"/>
+  <assert test="local-name() = $elements" role="warn">
+```
+
+This pattern:
+1. Matches elements by DITA class attribute
+2. Tokenizes allowed element names (comma-separated)
+3. Validates the local name is in the allowed list
+
+### dita-allowOnlyBlockElements
+
+Ensures an element contains only DITA block elements.
+
+**Location**: `library.sch:468-495`
+
+**Dual validation approach**:
+1. Check for text content: `library.sch:485-489`
+2. Check inline elements: `library.sch:490-494`
+
+The pattern references `blockElements.xml` for the canonical list of DITA block elements.
+
+## Creating Custom Patterns
+
+To add a new abstract pattern to your DIM library:
+
+### Step 1: Define the Pattern
+
+Add your pattern to `library.sch`:
+
+```xml
+<pattern abstract="true" id="requireAttributeValue">
+  <title>Require specific attribute value</title>
+  <p>Validates that an element has a required attribute with a specific value.</p>
+  <parameters xmlns="http://oxygenxml.com/ns/schematron/params">
+    <parameter>
+      <name>element</name>
+      <desc>The element to check</desc>
+    </parameter>
+    <parameter>
+      <name>attribute</name>
+      <desc>The attribute name</desc>
+    </parameter>
+    <parameter>
+      <name>value</name>
+      <desc>The required value</desc>
+    </parameter>
+    <parameter>
+      <name>message</name>
+      <desc>Validation message</desc>
+    </parameter>
+  </parameters>
+  <rule context="$element">
+    <assert test="@$attribute = '$value'" role="warn">
+      $message
+      Found: <value-of select="@$attribute"/>
+    </assert>
+  </rule>
+</pattern>
+```
+
+### Step 2: Create QuickFixes (Optional)
+
+Add corresponding fixes to `quickFix-library.xml`:
+
+```xml
+<sqf:fix id="requireAttributeValue_setCorrect">
+  <sqf:param name="attribute" abstract="true"/>
+  <sqf:param name="value" abstract="true"/>
+  <sqf:description>
+    <sqf:title>Set <value-of select="'$attribute'"/> to "<value-of select="'$value'"/>"</sqf:title>
+  </sqf:description>
+  <sqf:replace match="@$attribute" target="{$attribute}" 
+    node-type="attribute" select="'$value'"/>
+</sqf:fix>
+```
+
+### Step 3: Reference the Fix
+
+Update your pattern to reference the QuickFix:
+
+```xml
+<assert test="@$attribute = '$value'" role="warn" 
+  sqf:fix="requireAttributeValue_setCorrect">
+```
+
+## Pattern Instantiation
+
+Patterns are instantiated in DITA topics using definition lists within sections marked with `audience="rules"`.
+
+### Instantiation Syntax
+
+```xml
+<section audience="rules">
+  <title>Validation Rules</title>
+  <dl>
+    <dlhead>
+      <dthd>Rule</dthd>
+      <ddhd>avoidWordInElement</ddhd>
+    </dlhead>
+    <dlentry>
+      <dt>element</dt>
+      <dd>title|shortdesc</dd>
+    </dlentry>
+    <dlentry>
+      <dt>word</dt>
+      <dd>utilize</dd>
+    </dlentry>
+    <dlentry>
+      <dt>message</dt>
+      <dd>Use "use" instead of "utilize".</dd>
+    </dlentry>
+  </dl>
+</section>
+```
+
+### Processing Pipeline
+
+The XSLT transformation (`gen-rules.xsl`) converts these definition lists into Schematron pattern instances:
+
+**Key transformation**: `gen-rules.xsl:41-58`
+
+```xml
+<xsl:template match="dl" mode="instantiate">
+  <pattern is-a="{dlhead/ddhd}" see="{$target}">
+    <xsl:apply-templates mode="instantiate"/>
+  </pattern>
+</xsl:template>
+
+<xsl:template match="dlentry" mode="instantiate">
+  <xsl:variable name="ap">'</xsl:variable>
+  <xsl:variable name="doubleap">''</xsl:variable>
+  <param name="{dt}" value="{replace(dd, $ap, $doubleap)}"/>
+</xsl:template>
+```
+
+<Expandable title="Special Character Handling">
+
+Note the apostrophe escaping at `gen-rules.xsl:55-57`. This is critical for parameters containing single quotes:
+
+```xml
+<param name="{dt}" value="{replace(dd, $ap, $doubleap)}"/>
+```
+
+This replaces single quotes with doubled single quotes, preventing XPath syntax errors.
+
+</Expandable>
+
+## Advanced Techniques
+
+### Using Variables in Patterns
+
+Define reusable calculations with `<let>`:
+
+```xml
+<rule context="$element">
+  <let name="wordCount" value="count(tokenize(normalize-space(.), ' '))"/>
+  <let name="averageWordLength" value="string-length(normalize-space(.)) div $wordCount"/>
+  <assert test="$averageWordLength &lt; 10">
+    Words are too long on average.
+  </assert>
+</rule>
+```
+
+### Multiple Assertions per Rule
+
+Check multiple conditions in one context:
+
+```xml
+<rule context="$element">
+  <assert test="condition1">Message 1</assert>
+  <assert test="condition2">Message 2</assert>
+  <report test="condition3">Message 3</report>
+</rule>
+```
+
+Use `<assert>` for required conditions and `<report>` to flag unwanted conditions.
+
+### Context-Sensitive Patterns
+
+Use XPath predicates for complex contexts:
+
+```xml
+<rule context="$element[parent::$parentElement][@$attribute]">
+  <!-- Only matches when element has specific parent AND attribute -->
+</rule>
+```
+
+## Best Practices
+
+1. **Parameter naming**: Use descriptive names that indicate the parameter's purpose
+2. **Message clarity**: Include helpful context in validation messages
+3. **Performance**: Use `role="warn"` for style guide violations vs. `role="error"` for critical issues
+4. **QuickFix design**: Provide multiple fix options when appropriate
+5. **Documentation**: Always include `<title>`, `<p>`, and parameter descriptions
+
+## Testing Patterns
+
+Before deploying custom patterns:
+
+1. Create test DITA topics with both valid and invalid examples
+2. Generate the Schematron schema: run the transformation pipeline
+3. Validate test documents in oXygen
+4. Verify QuickFixes work as expected
+5. Check performance with large documents
+
+## Next Steps
+
+- Learn how to [write custom validation rules](/advanced/custom-rules)
+- Explore [framework customization](/advanced/framework-customization) for integrating patterns
+- Review the [API reference](/api-reference/business-rule) for programmatic access

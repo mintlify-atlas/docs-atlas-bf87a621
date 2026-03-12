@@ -1,0 +1,491 @@
+---
+title: 'Oxygen Framework'
+description: 'DIM framework extension for Oxygen XML Editor'
+---
+
+The DIM Oxygen framework extends DITA editing support in Oxygen XML Editor with specialized actions for creating and managing style guide rules and metadata annotations.
+
+## Overview
+
+The framework is packaged as `dim.framework` and includes custom CSS, actions, and a JAR-based extension that provides intelligent rule management capabilities.
+
+<CardGroup cols={2}>
+  <Card title="Visual Enhancements" icon="eye">
+    Custom CSS styling for rule and metadata sections
+  </Card>
+  <Card title="Author Actions" icon="bolt">
+    Interactive buttons for adding rules and metadata
+  </Card>
+  <Card title="Rule Repository" icon="database">
+    Java-based extensions for rule library management
+  </Card>
+  <Card title="Quick Fixes" icon="wrench">
+    Integration with Schematron Quick Fixes
+  </Card>
+</CardGroup>
+
+## Framework Structure
+
+### Location
+```
+frameworks/dim/
+```
+
+### Components
+
+<Accordion title="File Structure">
+
+```
+dim/
+├── dim.framework              # Framework archive (ZIP)
+├── dim2sch.xsl               # Schematron generator
+├── oxygen-gim-extensions.jar # Java extensions
+├── css/
+│   └── rules.css            # Author mode styling
+├── images/                   # Framework icons
+└── pagedown/                 # Markdown preview support
+```
+
+The `.framework` file is a ZIP archive containing:
+- Framework descriptor XML
+- CSS files
+- Action definitions
+- Extension JAR references
+- Catalog mappings
+
+</Accordion>
+
+## CSS Styling (rules.css)
+
+The `rules.css` file provides visual styling for rule definitions and metadata annotations in Author mode.
+
+### Rules Section Styling
+
+<Accordion title="Visual Presentation">
+
+Rules sections (`section[@audience='rules']`) are styled as tables:
+
+```css
+section[audience~='rules'] dl {
+    display: table;
+}
+
+section[audience~='rules'] dlhead,
+section[audience~='rules'] dlentry {
+    display: table-row;
+}
+
+section[audience~='rules'] dthd,
+section[audience~='rules'] ddhd,
+section[audience~='rules'] dt, 
+section[audience~='rules'] dd {
+    display: table-cell;
+    padding: 0.2em;    
+}
+```
+
+**Header Styling**:
+```css
+section[audience~='rules'] dthd,
+section[audience~='rules'] ddhd {
+    background-color: #DDEEFF;
+}
+```
+
+**Row Styling**:
+```css
+section[audience~='rules'] dt,
+section[audience~='rules'] dd {
+    background-color: #FAFCFF;
+}
+
+section[audience~='rules'] dt {
+    width: 30%;
+    padding-left: 2%;
+}
+
+section[audience~='rules'] dd {
+    width: 60%;
+}
+```
+
+**Borders**:
+```css
+section[audience~='rules'] dthd,
+section[audience~='rules'] ddhd,
+section[audience~='rules'] dt,
+section[audience~='rules'] dd {
+    border: 1px solid #EEEEEE;
+}
+
+/* Hover state */
+section[audience~='rules'] dt:hover,
+section[audience~='rules'] dd:hover {
+    border: 1px solid gray;
+}
+
+/* Focus state */
+section[audience~='rules'] dt:focus,
+section[audience~='rules'] dd:focus {
+    border: 1px solid blue;
+}
+```
+
+</Accordion>
+
+### Editability Control
+
+<Accordion title="Edit Restrictions">
+
+Parameter names (`dt`) are read-only, while values (`dd`) are editable:
+
+```css
+section[audience~='rules'] dl {
+    -oxy-editable: false;
+}
+
+section[audience~='rules'] dd {
+    -oxy-editable: true;
+}
+```
+
+This ensures users can only modify parameter values, not the parameter names themselves.
+
+</Accordion>
+
+### Action Buttons
+
+<Accordion title="Interactive Controls">
+
+**Add Rule Button** (in rules sections):
+```css
+section[audience~='rules']:after {
+    -oxy-append-content:
+        "\A"
+        oxy_label(text, "Use ", styles, "font-size:medium") 
+        oxy_button(actionID, 'add.rule', transparent, true, actionContext, caret) 
+        oxy_label(text, " to add a new rule        ", styles, "font-size:medium")
+    ;
+}
+```
+
+**Delete Rule Button** (on individual rules):
+```css
+section[audience~='rules'] dl:after {
+    display: block;
+    content:
+        oxy_button(actionID, 'delete.element', transparent, true, 
+                   enableInReadOnlyContext, true)
+    ;
+}
+```
+
+**Add Metadata Link** (in metadata sections):
+```css
+metadata:after {
+    display: block;
+    content: 
+        oxy_button(actionID, 'add.link', transparent, true)
+    ;
+}
+```
+
+</Accordion>
+
+### Metadata Styling
+
+<Accordion title="Metadata Annotations">
+
+Metadata elements (`data[@audience='styleguide']`) display as forms:
+
+```css
+data[audience~='styleguide']:before(2) {
+    content:
+        oxy_label(text, "Link from: ", width, 30%)
+        oxy_textfield(edit, '@name', width, 65%)
+        "\A"
+        oxy_label(text, "Link text: ", width, 30%)
+        oxy_textfield(edit, '@value', width, 65%)
+    ;
+}
+
+data[audience~='styleguide'] {
+    margin: 0.5em;
+}
+
+data[audience~='styleguide']:after {
+    content: 
+        oxy_button(actionID, 'add.link', transparent, true)
+        " "
+        oxy_button(actionID, 'delete.element', transparent, true, 
+                   enableInReadOnlyContext, true)
+        " "
+    ;
+    display: block;
+}
+```
+
+This creates an inline form showing:
+- **Link from**: Element or attribute name (e.g., `title` or `@conref`)
+- **Link text**: Display text for the style guide link
+
+</Accordion>
+
+### Oxygen Comment Folding
+
+```css
+oxy|comment {
+    -oxy-foldable: true;
+    -oxy-folded: true;
+}
+```
+
+Oxygen comments are collapsible by default to reduce clutter.
+
+## Java Extensions
+
+The `oxygen-gim-extensions.jar` provides programmatic access to the rule library.
+
+### Core Classes
+
+<Accordion title="Java API">
+
+**BusinessRule** (`com.oxygenxml.gim.BusinessRule`)
+Represents a single abstract pattern from the library.
+
+**BusinessRuleParam** (`com.oxygenxml.gim.BusinessRuleParam`)
+Represents a parameter for a business rule.
+
+**BusinessRuleLibrary** (`com.oxygenxml.gim.BusinessRuleLibrary`)
+```java
+@XmlRootElement(name="rules") 
+public class BusinessRuleLibrary {
+  @XmlElement(name="rule")
+  private final List<BusinessRule> rules = new ArrayList<BusinessRule>();
+  
+  private transient long timestamp;
+  
+  public List<BusinessRule> getRules() {
+    return rules;
+  }
+  
+  public long getTimestamp() {
+    return timestamp;
+  }
+  
+  public void setTimestamp(long timestamp) {
+    this.timestamp = timestamp;
+  }
+}
+```
+
+The library parses `library.sch` and extracts:
+- Pattern IDs
+- Pattern titles and descriptions
+- Parameter definitions with names and descriptions
+- Parameter metadata from `xmlns:http://oxygenxml.com/ns/schematron/params`
+
+**BusinessRuleRepository** (`com.oxygenxml.gim.BusinessRuleRepository`)
+Manages caching and retrieval of parsed business rules.
+
+**DocHandler** (`com.oxygenxml.gim.DocHandler`)
+Handles documentation extraction and processing.
+
+</Accordion>
+
+### Rule Extraction
+
+<Accordion title="XSLT Processing">
+
+The extension uses `extractRules.xsl` to parse abstract patterns:
+
+```
+oxygen-sdk-workspace/sdkExtensions/oxygen-gim-extensions/
+  src/main/resources/extractRules.xsl
+```
+
+This XSLT processes `library.sch` and extracts parameter metadata from:
+```xml
+<parameters xmlns="http://oxygenxml.com/ns/schematron/params">
+  <parameter>
+    <name>element</name>
+    <desc>Specifies the element we will verify...</desc>
+  </parameter>
+  <!-- More parameters -->
+</parameters>
+```
+
+</Accordion>
+
+## Author Actions
+
+The framework defines custom actions accessible via the Author mode toolbar.
+
+### add.rule Action
+
+<Accordion title="Add Rule Action">
+
+**Purpose**: Inserts a new rule definition (`dl` element) into a `section[@audience='rules']`.
+
+**Behavior**:
+1. Presents a dialog with available patterns from `library.sch`
+2. Shows parameter names and descriptions for the selected pattern
+3. Inserts a pre-populated `dl` element with the pattern structure
+4. Positions cursor for parameter value entry
+
+**Usage**: Click the "Add Rule" button in a rules section or use the action from the toolbar.
+
+</Accordion>
+
+### add.link Action
+
+<Accordion title="Add Metadata Link Action">
+
+**Purpose**: Inserts a metadata annotation linking an element or attribute to the current topic.
+
+**Behavior**:
+1. Opens a dialog to enter element or attribute name
+2. Prompts for link text
+3. Inserts a `data[@audience='styleguide']` element in the topic's `metadata` section
+
+**Usage**: Click the "Add Link" button in the metadata section.
+
+**Generated Code**:
+```xml
+<data audience="styleguide" name="title" value="Titling Topics"/>
+```
+
+</Accordion>
+
+### delete.element Action
+
+Standard Oxygen action for removing elements, enabled on rules and metadata elements.
+
+## Using the Framework
+
+### Enabling the Framework
+
+<Steps>
+  <Step title="Install Framework">
+    Copy the `frameworks/dim` directory to your Oxygen frameworks folder or reference it from the DIM project location.
+  </Step>
+  
+  <Step title="Activate DIM Style">
+    Open a DITA topic and select **+ DIM** from the Styles dropdown in Author mode.
+  </Step>
+  
+  <Step title="Use Actions">
+    - Add rules using the "Add Rule" button in rules sections
+    - Add metadata links using the "Add Link" button in metadata sections
+    - Edit parameter values directly in the visual table
+  </Step>
+</Steps>
+
+### Adding a Rule
+
+<Steps>
+  <Step title="Create Rules Section">
+    Add a section with `audience="rules"`:
+    ```xml
+    <section audience="rules">
+      <title>Business Rules</title>
+    </section>
+    ```
+  </Step>
+  
+  <Step title="Click Add Rule">
+    Click the "Add Rule" button within the section.
+  </Step>
+  
+  <Step title="Select Pattern">
+    Choose an abstract pattern from the library (e.g., `restrictWords`).
+  </Step>
+  
+  <Step title="Fill Parameters">
+    Enter values for each parameter in the generated table.
+  </Step>
+</Steps>
+
+### Adding Metadata
+
+<Steps>
+  <Step title="Open Prolog">
+    Ensure your topic has a `prolog/metadata` section:
+    ```xml
+    <prolog>
+      <metadata>
+      </metadata>
+    </prolog>
+    ```
+  </Step>
+  
+  <Step title="Click Add Link">
+    Click the "Add Link" button in the metadata section.
+  </Step>
+  
+  <Step title="Enter Details">
+    - **Element/Attribute**: Enter the name (prefix attributes with `@`)
+    - **Link Text**: Enter descriptive text for the style guide link
+  </Step>
+</Steps>
+
+## Framework Distribution
+
+The framework can be distributed in several ways:
+
+### Add-on Package
+
+Package the framework as an Oxygen add-on for easy installation via the Oxygen add-on management system.
+
+### Framework Extension
+
+Users can extend the base DITA framework and reference the DIM framework files, inheriting DIM capabilities in their custom framework.
+
+### Standalone Distribution
+
+Distribute the `dim.framework` file and JAR for manual installation.
+
+## Technical Requirements
+
+- Oxygen XML Editor 17.0 or later (for framework features)
+- Java 8+ (for extension JAR)
+- DITA framework (DIM extends DITA support)
+
+## Customization
+
+You can customize the framework by:
+
+### Modifying CSS
+
+Edit `css/rules.css` to change visual styling:
+- Colors and borders
+- Table dimensions
+- Button placement
+
+### Extending Actions
+
+Add custom actions to the framework descriptor:
+- Rule validation actions
+- Custom metadata types
+- Integration with external tools
+
+### Custom Rules Processing
+
+Modify the Java extensions to:
+- Add custom rule types
+- Integrate with external validation services
+- Provide additional IDE features
+
+## Related Resources
+
+<CardGroup cols={3}>
+  <Card title="Rule Library" icon="book-open" href="/components/rule-library">
+    Abstract patterns used by the framework
+  </Card>
+  <Card title="XSLT Scripts" icon="code" href="/components/xslt-scripts">
+    Generation scripts for rules
+  </Card>
+  <Card title="Sample Style Guide" icon="file" href="/components/sample-styleguide">
+    Example usage of framework features
+  </Card>
+</CardGroup>

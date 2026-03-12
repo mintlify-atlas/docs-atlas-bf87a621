@@ -1,0 +1,508 @@
+---
+title: 'Rule Library'
+description: 'Abstract Schematron patterns for validating DITA content'
+---
+
+The DIM rule library (`info-model/rules/library.sch`) contains reusable abstract Schematron patterns that enforce style guide rules. These patterns are instantiated with specific parameters in your style guide topics.
+
+## Overview
+
+The library provides generic validation rules as [Schematron abstract patterns](http://schematron.com). Each pattern can be instantiated multiple times with different parameters to create specific validation rules for your content.
+
+Abstract patterns are defined once in the library and then instantiated in style guide topics by specifying parameter values in a DITA definition list (`dl`) within a section marked with `audience="rules"`.
+
+## Generic Patterns
+
+The library includes the following reusable patterns:
+
+<CardGroup cols={2}>
+  <Card title="Content Validation" icon="text">
+    Patterns for validating text content, words, and phrases
+  </Card>
+  <Card title="Structure Validation" icon="sitemap">
+    Patterns for validating element nesting and relationships
+  </Card>
+  <Card title="Attribute Validation" icon="at">
+    Patterns for validating attribute usage
+  </Card>
+  <Card title="DITA-Specific Rules" icon="file-code">
+    Patterns designed specifically for DITA content
+  </Card>
+</CardGroup>
+
+## Content Validation Patterns
+
+### avoidWordInElement
+
+Issues a warning if a specific word or phrase appears inside an element.
+
+<Accordion title="Pattern Details">
+
+**Purpose**: Advise users not to use specific words in certain elements. The check is case-insensitive.
+
+**Parameters**:
+- `element` - The element to check (can use `|` to specify multiple: `title|p`)
+- `word` - The word or phrase to look for
+- `message` - The message to display when the word is found
+
+**Example Usage**:
+```xml
+<dl>
+  <dlhead>
+    <dthd>Rule</dthd>
+    <ddhd>avoidWordInElement</ddhd>
+  </dlhead>
+  <dlentry>
+    <dt>element</dt>
+    <dd>title</dd>
+  </dlentry>
+  <dlentry>
+    <dt>word</dt>
+    <dd>Introduction</dd>
+  </dlentry>
+  <dlentry>
+    <dt>message</dt>
+    <dd>Avoid using generic terms like "Introduction" in titles.</dd>
+  </dlentry>
+</dl>
+```
+
+**Implementation**: Uses regex matching `(\s|^)($word)(\s|$)` with case-insensitive flag.
+
+</Accordion>
+
+### avoidEndFragment
+
+Issues a warning if an element ends with a specified fragment or character.
+
+<Accordion title="Pattern Details">
+
+**Purpose**: Advise users not to end elements with specific text sequences (e.g., periods in titles).
+
+**Parameters**:
+- `element` - The element to check
+- `fragment` - The text fragment to check for at the end
+- `message` - The message to display when the fragment is found
+
+**Example Usage**:
+```xml
+<dl>
+  <dlhead>
+    <dthd>Rule</dthd>
+    <ddhd>avoidEndFragment</ddhd>
+  </dlhead>
+  <dlentry>
+    <dt>element</dt>
+    <dd>title</dd>
+  </dlentry>
+  <dlentry>
+    <dt>fragment</dt>
+    <dd>.</dd>
+  </dlentry>
+  <dlentry>
+    <dt>message</dt>
+    <dd>Titles should not end with a period.</dd>
+  </dlentry>
+</dl>
+```
+
+**Implementation**: Uses XPath `ends-with(normalize-space(.), '$fragment')`.
+
+</Accordion>
+
+### restrictWords
+
+Checks that the number of words in an element is within specified limits.
+
+<Accordion title="Pattern Details">
+
+**Purpose**: Ensure element content has an appropriate word count.
+
+**Parameters**:
+- `parentElement` - The element whose words should be counted
+- `minWords` - Minimum number of words allowed
+- `maxWords` - Maximum number of words allowed
+- `message` - Additional message to display
+
+**Example Usage**:
+```xml
+<dl>
+  <dlhead>
+    <dthd>Rule</dthd>
+    <ddhd>restrictWords</ddhd>
+  </dlhead>
+  <dlentry>
+    <dt>parentElement</dt>
+    <dd>title</dd>
+  </dlentry>
+  <dlentry>
+    <dt>minWords</dt>
+    <dd>1</dd>
+  </dlentry>
+  <dlentry>
+    <dt>maxWords</dt>
+    <dd>8</dd>
+  </dlentry>
+  <dlentry>
+    <dt>message</dt>
+    <dd>Keep titles between 1 and 8 words.</dd>
+  </dlentry>
+</dl>
+```
+
+**Implementation**: Tokenizes content by spaces and counts tokens. Displays actual word count in error message.
+
+</Accordion>
+
+### restrictCharacters
+
+Checks that the number of characters in an element is within specified limits.
+
+<Accordion title="Pattern Details">
+
+**Purpose**: Ensure element content meets character count constraints.
+
+**Parameters**:
+- `parentElement` - The element whose characters should be counted
+- `minChars` - Minimum number of characters allowed
+- `maxChars` - Maximum number of characters allowed
+- `normalize` - Set to "true" or "yes" to normalize whitespace before counting
+- `message` - Additional message to display
+
+**Example Usage**:
+```xml
+<dl>
+  <dlhead>
+    <dthd>Rule</dthd>
+    <ddhd>restrictCharacters</ddhd>
+  </dlhead>
+  <dlentry>
+    <dt>parentElement</dt>
+    <dd>shortdesc</dd>
+  </dlentry>
+  <dlentry>
+    <dt>minChars</dt>
+    <dd>50</dd>
+  </dlentry>
+  <dlentry>
+    <dt>maxChars</dt>
+    <dd>160</dd>
+  </dlentry>
+  <dlentry>
+    <dt>normalize</dt>
+    <dd>true</dd>
+  </dlentry>
+  <dlentry>
+    <dt>message</dt>
+    <dd>Short descriptions should be concise.</dd>
+  </dlentry>
+</dl>
+```
+
+**Implementation**: Uses `string-length()` with optional `normalize-space()`. Displays actual character count in error message.
+
+</Accordion>
+
+## Structure Validation Patterns
+
+### recommendElementInParent
+
+Recommends using a specific element inside a parent element.
+
+<Accordion title="Pattern Details">
+
+**Purpose**: Advise users to include optional but recommended elements.
+
+**Parameters**:
+- `parent` - The parent element
+- `element` - The child element that should appear
+- `message` - The message to display when the element is missing
+
+**Example Usage**:
+```xml
+<dl>
+  <dlhead>
+    <dthd>Rule</dthd>
+    <ddhd>recommendElementInParent</ddhd>
+  </dlhead>
+  <dlentry>
+    <dt>parent</dt>
+    <dd>task</dd>
+  </dlentry>
+  <dlentry>
+    <dt>element</dt>
+    <dd>context</dd>
+  </dlentry>
+  <dlentry>
+    <dt>message</dt>
+    <dd>Consider adding a context element to provide background information.</dd>
+  </dlentry>
+</dl>
+```
+
+</Accordion>
+
+### restrictNesting
+
+Restricts the nesting level of an element.
+
+<Accordion title="Pattern Details">
+
+**Purpose**: Prevent excessive nesting that can harm readability or processing.
+
+**Parameters**:
+- `element` - The element to check for nesting
+- `maxNestingLevel` - Maximum number of same-type ancestors allowed
+- `message` - The message to display when nesting exceeds the limit
+
+**Example Usage**:
+```xml
+<dl>
+  <dlhead>
+    <dthd>Rule</dthd>
+    <ddhd>restrictNesting</ddhd>
+  </dlhead>
+  <dlentry>
+    <dt>element</dt>
+    <dd>ul</dd>
+  </dlentry>
+  <dlentry>
+    <dt>maxNestingLevel</dt>
+    <dd>3</dd>
+  </dlentry>
+  <dlentry>
+    <dt>message</dt>
+    <dd>Lists should not be nested more than 3 levels deep.</dd>
+  </dlentry>
+</dl>
+```
+
+**Implementation**: Counts `ancestor::$element` and compares to maximum.
+
+</Accordion>
+
+### restrictNumberOfChildren
+
+Restricts the number of child elements within a parent element.
+
+<Accordion title="Pattern Details">
+
+**Purpose**: Enforce limits on how many times a child element can appear.
+
+**Parameters**:
+- `parentElement` - The parent element to check
+- `element` - The child element to count
+- `min` - Minimum number of occurrences allowed
+- `max` - Maximum number of occurrences allowed
+- `message` - Additional message to display
+
+**Implementation**: Counts matching child elements and validates against min/max bounds.
+
+</Accordion>
+
+### restrictChildrenElements
+
+Restricts which elements can appear inside a parent element.
+
+<Accordion title="Pattern Details">
+
+**Purpose**: Constrain child elements to a specific allowed set.
+
+**Parameters**:
+- `parentElement` - The parent element
+- `allowedChildren` - Comma-separated list of allowed element names
+- `message` - Additional message to display
+
+**Example Usage**:
+```xml
+<dl>
+  <dlhead>
+    <dthd>Rule</dthd>
+    <ddhd>restrictChildrenElements</ddhd>
+  </dlhead>
+  <dlentry>
+    <dt>parentElement</dt>
+    <dd>title</dd>
+  </dlentry>
+  <dlentry>
+    <dt>allowedChildren</dt>
+    <dd>ph</dd>
+  </dlentry>
+  <dlentry>
+    <dt>message</dt>
+    <dd>Only "ph" is allowed within a title element.</dd>
+  </dlentry>
+</dl>
+```
+
+**Implementation**: Checks each child element's `local-name()` against the tokenized allowed list.
+
+</Accordion>
+
+### avoidDuplicateContent
+
+Avoids having two sibling elements with the same content.
+
+<Accordion title="Pattern Details">
+
+**Purpose**: Identify duplicate content between sibling elements.
+
+**Parameters**:
+- `matchElement` - The element to check
+- `targetElement` - A sibling element name to check against
+- `message` - The message to display when duplicates are found
+
+**Implementation**: Compares normalized content with preceding and following siblings of the target type.
+
+</Accordion>
+
+### requireContentAfterElement
+
+Checks that text content exists following a specified element.
+
+<Accordion title="Pattern Details">
+
+**Purpose**: Ensure an element is not the last content in its parent.
+
+**Parameters**:
+- `element` - The element to check
+- `message` - The message to display if no content follows
+
+**Implementation**: Checks for `following::text()[normalize-space()!='']`.
+
+</Accordion>
+
+## Attribute Validation Patterns
+
+### avoidAttributeInElement
+
+Issues a warning if an attribute appears inside a specified element.
+
+<Accordion title="Pattern Details">
+
+**Purpose**: Advise users not to use specific attributes on certain elements.
+
+**Parameters**:
+- `element` - The element to check
+- `attribute` - The forbidden attribute
+- `message` - The message to display when the attribute is found
+
+**Example Usage**:
+```xml
+<dl>
+  <dlhead>
+    <dthd>Rule</dthd>
+    <ddhd>avoidAttributeInElement</ddhd>
+  </dlhead>
+  <dlentry>
+    <dt>element</dt>
+    <dd>p</dd>
+  </dlentry>
+  <dlentry>
+    <dt>attribute</dt>
+    <dd>outputclass</dd>
+  </dlentry>
+  <dlentry>
+    <dt>message</dt>
+    <dd>Avoid using outputclass on paragraph elements.</dd>
+  </dlentry>
+</dl>
+```
+
+**Implementation**: Tests for `not(@$attribute)`.
+
+</Accordion>
+
+## DITA-Specific Patterns
+
+These patterns are designed specifically for DITA content and leverage DITA's `@class` attribute.
+
+### dita-allowedElementsForClass
+
+Checks element names for elements with a specified DITA class value.
+
+<Accordion title="Pattern Details">
+
+**Purpose**: Ensure only allowed element names are used for a given DITA class specialization.
+
+**Parameters**:
+- `elementClass` - The DITA class value to match (e.g., `topic/title`)
+- `allowedElementNames` - Comma-separated list of allowed element names
+- `message` - Additional message to display
+
+**Example Usage**:
+```xml
+<dl>
+  <dlhead>
+    <dthd>Rule</dthd>
+    <ddhd>dita-allowedElementsForClass</ddhd>
+  </dlhead>
+  <dlentry>
+    <dt>elementClass</dt>
+    <dd>topic/ph</dd>
+  </dlentry>
+  <dlentry>
+    <dt>allowedElementNames</dt>
+    <dd>ph,term,tm</dd>
+  </dlentry>
+  <dlentry>
+    <dt>message</dt>
+    <dd>Only standard phrase elements are allowed.</dd>
+  </dlentry>
+</dl>
+```
+
+**Implementation**: Matches elements by `contains(@class, ' $elementClass ')` and validates the local name.
+
+</Accordion>
+
+### dita-allowOnlyBlockElements
+
+Allows only DITA block elements inside a specified element.
+
+<Accordion title="Pattern Details">
+
+**Purpose**: Ensure an element contains only block-level elements, no inline elements or text.
+
+**Parameters**:
+- `element` - The DITA element to check
+- `message` - The message to display if text or inline elements are found
+
+**Implementation**: 
+- Checks for text content with `text()/normalize-space(.)!=''`
+- Validates child element classes against a reference list of block element classes in `blockElements.xml`
+
+</Accordion>
+
+## Quick Fixes
+
+Many patterns include Schematron Quick Fix (SQF) references for common corrections:
+
+- **avoidWordInElement**: `avoidWordInElement_deleteWord`, `avoidWordInElement_replaceWord`
+- **avoidEndFragment**: `avoidEndFragment_deleteFragment`, `avoidEndFragment_replaceFragment`
+- **avoidAttributeInElement**: `avoidAttributeInElement_delete`, `avoidAttributeInElement_rename`
+- **recommendElementInParent**: `recommendElementInParent_createAfterAnchor`
+- **restrictWords**: `restrictWords_setNew`
+- **restrictChildrenElements**: `unwrapElement`, `removeCurrentElement`
+
+These quick fixes are defined in `info-model/rules/quickFix-library.xml` and provide interactive remediation options in compatible editors like Oxygen XML Editor.
+
+## File Location
+
+The rule library is located at:
+```
+info-model/rules/library.sch
+```
+
+All patterns use XSLT 2.0 as the query binding (`queryBinding="xslt2"`).
+
+## Related Resources
+
+<CardGroup cols={2}>
+  <Card title="XSLT Scripts" icon="code" href="/components/xslt-scripts">
+    Scripts that process and instantiate these patterns
+  </Card>
+  <Card title="Sample Style Guide" icon="book" href="/components/sample-styleguide">
+    Example instantiations of library patterns
+  </Card>
+</CardGroup>

@@ -1,0 +1,461 @@
+---
+title: 'Rule Parameters'
+description: 'Parameter syntax and pattern instantiation for Schematron rules'
+icon: 'sliders'
+---
+
+This guide explains how to instantiate abstract Schematron patterns from the library with concrete parameters to create enforceable style guide rules.
+
+## Pattern Instantiation
+
+Abstract patterns in `library.sch` are instantiated using the `is-a` attribute and `<param>` elements that bind values to the pattern's parameter placeholders.
+
+### Basic Syntax
+
+```xml
+<pattern is-a="patternId">
+  <param name="parameterName" value="parameterValue"/>
+  <param name="anotherParameter" value="anotherValue"/>
+</pattern>
+```
+
+### Required Elements
+
+<ParamField path="is-a" type="attribute" required>
+  References the abstract pattern ID from `library.sch` (e.g., `avoidWordInElement`, `restrictWords`).
+</ParamField>
+
+<ParamField path="param[@name]" type="attribute" required>
+  The parameter name defined in the abstract pattern.
+</ParamField>
+
+<ParamField path="param[@value]" type="attribute" required>
+  The concrete value to bind to the parameter. This is interpolated into the pattern's XPath expressions.
+</ParamField>
+
+## Parameter Types and Values
+
+### Element Names
+
+Parameters that specify elements accept element local names as strings.
+
+```xml
+<param name="element" value="title"/>
+```
+
+**Multiple elements:** Separate with pipe `|` for alternatives:
+
+```xml
+<param name="element" value="title|shortdesc|p"/>
+```
+
+This allows the pattern to match any of the specified elements.
+
+### XPath Expressions
+
+Some parameters accept XPath expressions that are evaluated in the pattern's context.
+
+```xml
+<param name="parent" value="task"/>
+<param name="element" value="prolog"/>
+```
+
+These are substituted directly into the pattern's rule context or test attributes using `$parameterName` placeholders.
+
+### String Values
+
+Text strings for messages, words to avoid, or fragments:
+
+```xml
+<param name="word" value="click"/>
+<param name="message" value="Avoid using 'click' - use 'select' instead."/>
+```
+
+**Special characters:** XML entities must be escaped:
+
+- `&quot;` for `"`
+- `&amp;` for `&`
+- `&lt;` for `<`
+- `&gt;` for `>`
+- `&#xA;` for newline
+
+Example with quotes:
+
+```xml
+<param name="message" value="Only &quot;ph&quot; is allowed within a title element."/>
+```
+
+### Numeric Values
+
+Integer or decimal numbers for counts and limits:
+
+```xml
+<param name="minWords" value="1"/>
+<param name="maxWords" value="8"/>
+<param name="maxNestingLevel" value="3"/>
+```
+
+### Boolean Values
+
+String representations of boolean values:
+
+```xml
+<param name="normalize" value="true"/>
+<param name="normalize" value="yes"/>
+<param name="normalize" value="true()"/>
+```
+
+Patterns check for these specific string values in their implementation.
+
+### Comma-Separated Lists
+
+Some patterns accept comma-separated lists of values:
+
+```xml
+<param name="allowedChildren" value="task, reference, concept, glossentry"/>
+<param name="allowedElementNames" value="p,ul,ol,note,fig"/>
+```
+
+The pattern tokenizes these internally and validates against each item.
+
+## Real-World Examples
+
+### Enforce Topic Type Restrictions
+
+```xml
+<pattern is-a="dita-allowedElementsForClass"
+         see="http://example.com/styleguide/information-types.html">
+  <param name="elementClass" value="topic/topic"/>
+  <param name="allowedElementNames" value="task, reference, concept, glossentry, troubleshooting"/>
+  <param name="message" value="This is not an allowed topic type."/>
+</pattern>
+```
+
+**Parameters explained:**
+- `elementClass`: Matches elements with DITA `@class` containing `topic/topic`
+- `allowedElementNames`: Only these five specializations are permitted
+- `message`: Shown when an invalid topic type is encountered
+
+### Recommend Structural Elements
+
+```xml
+<pattern is-a="recommendElementInParent"
+         see="http://example.com/styleguide/task-structure.html">
+  <param name="parent" value="task"/>
+  <param name="element" value="shortdesc"/>
+  <param name="message" value="Short description is required for tasks."/>
+</pattern>
+```
+
+**Parameters explained:**
+- `parent`: The `<task>` element is checked
+- `element`: Must contain a `<shortdesc>` child
+- `message`: Advisory message if missing
+
+### Restrict Title Length
+
+```xml
+<pattern is-a="restrictWords"
+         see="http://example.com/styleguide/titling.html">
+  <param name="parentElement" value="title"/>
+  <param name="minWords" value="1"/>
+  <param name="maxWords" value="8"/>
+  <param name="message" value="Keep titles between 1 and 8 words."/>
+</pattern>
+```
+
+**Parameters explained:**
+- `parentElement`: Counts words in `<title>` elements
+- `minWords`/`maxWords`: Defines acceptable range
+- `message`: Base message; actual count is appended automatically
+
+### Avoid Problematic Terms
+
+```xml
+<pattern is-a="avoidWordInElement">
+  <param name="element" value="title|shortdesc"/>
+  <param name="word" value="click"/>
+  <param name="message" value="Use 'select' instead of 'click' for UI actions."/>
+</pattern>
+```
+
+**Parameters explained:**
+- `element`: Checks both titles and short descriptions
+- `word`: Case-insensitive detection of "click"
+- `message`: Provides alternative term
+
+### Prevent Duplicate Content
+
+```xml
+<pattern is-a="avoidDuplicateContent"
+         see="http://example.com/styleguide/short-descriptions.html">
+  <param name="matchElement" value="shortdesc"/>
+  <param name="targetElement" value="title"/>
+  <param name="message" value="Do not just restate the title in the short description."/>
+</pattern>
+```
+
+**Parameters explained:**
+- `matchElement`: The element being checked (short description)
+- `targetElement`: The sibling to compare against (title)
+- `message`: Explains the duplication problem
+
+### Control Child Element Types
+
+```xml
+<pattern is-a="restrictChildrenElements"
+         see="http://example.com/styleguide/titling.html">
+  <param name="parentElement" value="title"/>
+  <param name="allowedChildren" value="ph"/>
+  <param name="message" value="Only 'ph' is allowed within a title element."/>
+</pattern>
+```
+
+**Parameters explained:**
+- `parentElement`: Checks children of `<title>`
+- `allowedChildren`: Only `<ph>` elements permitted
+- `message`: Identifies the violation; actual element name is appended
+
+### Limit Nesting Depth
+
+```xml
+<pattern is-a="restrictNesting">
+  <param name="element" value="ul"/>
+  <param name="maxNestingLevel" value="3"/>
+  <param name="message" value="Lists should not be nested more than 3 levels deep."/>
+</pattern>
+```
+
+**Parameters explained:**
+- `element`: Tracks nesting of `<ul>` elements
+- `maxNestingLevel`: Maximum ancestor count of same type
+- `message`: Explains nesting limitation
+
+### Enforce Character Limits with Normalization
+
+```xml
+<pattern is-a="restrictCharacters">
+  <param name="parentElement" value="shortdesc"/>
+  <param name="minChars" value="50"/>
+  <param name="maxChars" value="250"/>
+  <param name="normalize" value="true"/>
+  <param name="message" value="Short descriptions must be meaningful and concise."/>
+</pattern>
+```
+
+**Parameters explained:**
+- `normalize`: Whitespace collapsed before counting
+- Character limits enforce content guidelines
+- Message provides context; actual count is appended
+
+## Advanced Parameter Techniques
+
+### Using the `see` Attribute
+
+Add a `see` attribute to patterns to link validation messages to your published style guide:
+
+```xml
+<pattern is-a="avoidWordInElement"
+         see="http://example.com/styleguide/webhelp/terminology.html">
+  <param name="element" value="p"/>
+  <param name="word" value="simply"/>
+  <param name="message" value="Avoid filler words like 'simply'."/>
+</pattern>
+```
+
+When validation fails, users can click the link to read the full guideline explanation.
+
+### Dynamic Message Construction
+
+Some patterns append dynamic information to your message parameter:
+
+**Word count patterns** add actual counts:
+```
+Your message: "Keep titles between 1 and 8 words."
+Actual output: "Keep titles between 1 and 8 words. You have 12 words."
+```
+
+**Character count patterns** include min/max context:
+```
+Your message: "Short descriptions must be concise."
+Actual output: "Short descriptions must be concise. It is recommended to not exceed 250 characters! You have 387 characters."
+```
+
+**Element validation** appends the violating element:
+```
+Your message: "Only allowed elements may appear."
+Actual output: "Only allowed elements may appear. The element 'image' is not in the list of allowed elements: (p,ul,ol)."
+```
+
+### Parameter Validation
+
+The DIM framework validates that:
+
+- All required parameters for a pattern are provided
+- Parameter names match those defined in the abstract pattern
+- Values are syntactically valid (well-formed XML attribute values)
+
+Missing or invalid parameters will cause schema compilation errors.
+
+## Integration with DITA
+
+### Generating Rules from DITA Topics
+
+The DIM workflow generates rule instantiations from DITA topics marked with `audience="rules"`:
+
+```xml
+<section audience="rules">
+  <data name="avoidWordInElement">
+    <data name="element" value="title|shortdesc"/>
+    <data name="word" value="click"/>
+    <data name="message" value="Use 'select' instead of 'click'."/>
+  </data>
+</section>
+```
+
+The `gen-rules.xsl` transformation converts these into pattern instantiations.
+
+### Rule Metadata
+
+Each generated pattern includes:
+- `is-a`: The pattern ID
+- `see`: Generated URL to the guideline topic in published output
+- XML comment: Source topic filename and title
+
+Example generated code:
+
+```xml
+<!--Generated from terminology.dita: Preferred Terminology -->
+<pattern is-a="avoidWordInElement"
+         see="http://example.com/styleguide/webhelp/terminology.html">
+  <param name="element" value="title|shortdesc"/>
+  <param name="word" value="click"/>
+  <param name="message" value="Use 'select' instead of 'click'."/>
+</pattern>
+```
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Write Clear, Actionable Messages" icon="message">
+    Messages should explain **why** the rule exists and **what** to do instead:
+    
+    - **Good:** "Use 'select' instead of 'click' for UI actions to support accessibility."
+    - **Poor:** "Invalid word detected."
+    
+    Include alternative approaches when possible.
+  </Accordion>
+
+  <Accordion title="Use Appropriate Numeric Limits" icon="ruler">
+    Base limits on actual content requirements:
+    
+    - **Titles:** 1-8 words typical for scannability
+    - **Short descriptions:** 1-50 words or 50-250 characters
+    - **Nesting:** 2-3 levels maximum for readability
+    
+    Test limits against real content to avoid false positives.
+  </Accordion>
+
+  <Accordion title="Combine Patterns for Complete Validation" icon="puzzle-piece">
+    Use multiple patterns to enforce related constraints:
+    
+    ```xml
+    <!-- Require element -->
+    <pattern is-a="recommendElementInParent">
+      <param name="parent" value="task"/>
+      <param name="element" value="shortdesc"/>
+      <param name="message" value="Tasks require short descriptions."/>
+    </pattern>
+    
+    <!-- Constrain content -->
+    <pattern is-a="restrictWords">
+      <param name="parentElement" value="shortdesc"/>
+      <param name="minWords" value="1"/>
+      <param name="maxWords" value="50"/>
+      <param name="message" value="Keep short descriptions concise."/>
+    </pattern>
+    
+    <!-- Prevent duplication -->
+    <pattern is-a="avoidDuplicateContent">
+      <param name="matchElement" value="shortdesc"/>
+      <param name="targetElement" value="title"/>
+      <param name="message" value="Expand on the title, don't repeat it."/>
+    </pattern>
+    ```
+  </Accordion>
+
+  <Accordion title="Link to Style Guide Documentation" icon="link">
+    Always use the `see` attribute to connect validations to explanations:
+    
+    ```xml
+    <pattern is-a="restrictWords"
+             see="http://example.com/styleguide/webhelp/title-guidelines.html">
+      ...
+    </pattern>
+    ```
+    
+    This helps writers understand the rationale and learn your standards.
+  </Accordion>
+
+  <Accordion title="Test Rules Before Deployment" icon="flask">
+    Validate your instantiated patterns:
+    
+    1. Check syntax with an XSLT 2.0 processor
+    2. Test against sample valid content (should pass)
+    3. Test against violating content (should trigger warnings)
+    4. Verify messages are clear and helpful
+    5. Confirm Quick Fixes work correctly (if applicable)
+  </Accordion>
+</AccordionGroup>
+
+## Troubleshooting
+
+### Pattern Not Firing
+
+**Symptom:** No validation messages appear for expected violations.
+
+**Causes and solutions:**
+
+1. **Parameter name mismatch** - Check spelling against library.sch:line_number definitions
+2. **Incorrect XPath** - Element parameters must match actual element names
+3. **Namespace issues** - DITA elements require proper namespace handling
+4. **Context mismatch** - Pattern context must match document structure
+
+### Unexpected Matches
+
+**Symptom:** Pattern triggers on valid content.
+
+**Causes and solutions:**
+
+1. **Too broad element selection** - Narrow the `element` parameter
+2. **Case sensitivity** - Some patterns are case-insensitive, others aren't
+3. **Whitespace normalization** - Use `normalize` parameter for character counts
+4. **Sibling matching** - `avoidDuplicateContent` checks immediate siblings only
+
+### Compilation Errors
+
+**Symptom:** Schema fails to compile or load.
+
+**Causes and solutions:**
+
+1. **Missing parameters** - All required parameters must be provided
+2. **Invalid XML** - Escape special characters in attribute values
+3. **Unknown pattern ID** - Verify `is-a` value exists in library.sch
+4. **Include path issues** - Check `<include href="library.sch#patternId"/>`
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Library Patterns" icon="book" href="/api/library-patterns">
+    Browse all available abstract patterns
+  </Card>
+  <Card title="Defining Rules" icon="pen-ruler" href="/guides/defining-rules">
+    Author rules in DITA style guide topics
+  </Card>
+  <Card title="Custom Rules" icon="code" href="/advanced/custom-rules">
+    Create your own abstract patterns
+  </Card>
+  <Card title="Oxygen Integration" icon="atom" href="/guides/oxygen-integration">
+    Configure validation in Oxygen XML Editor
+  </Card>
+</CardGroup>
