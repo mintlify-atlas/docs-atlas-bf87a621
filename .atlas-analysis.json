@@ -1,0 +1,113 @@
+{
+  "projectType": "framework",
+  "projectName": "Dynamic Information Model (DIM)",
+  "projectDescription": "An intelligent style guide framework that enforces content rules and provides discoverable DITA authoring guidelines.",
+  "theme": "linden",
+  "primaryColor": "#be2e37",
+  "lightColor": "#f2d7d5",
+  "darkColor": "#8c929c",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": [
+              "introduction",
+              "quickstart",
+              "installation"
+            ]
+          },
+          {
+            "group": "Core Concepts",
+            "pages": [
+              "concepts/overview",
+              "concepts/intelligent-styleguide",
+              "concepts/rule-enforcement",
+              "concepts/discoverable-topics"
+            ]
+          },
+          {
+            "group": "Guides",
+            "pages": [
+              "guides/creating-style-guide",
+              "guides/defining-rules",
+              "guides/annotating-topics",
+              "guides/generating-deliverables",
+              "guides/oxygen-integration"
+            ]
+          },
+          {
+            "group": "Components",
+            "pages": [
+              "components/rule-library",
+              "components/xslt-scripts",
+              "components/oxygen-framework",
+              "components/sample-styleguide"
+            ]
+          },
+          {
+            "group": "Advanced",
+            "pages": [
+              "advanced/schematron-patterns",
+              "advanced/custom-rules",
+              "advanced/framework-customization"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "API Reference",
+        "groups": [
+          {
+            "group": "XSLT Scripts",
+            "pages": [
+              "api/gen-rules",
+              "api/gen-mappings",
+              "api/dim2sch"
+            ]
+          },
+          {
+            "group": "Schematron Library",
+            "pages": [
+              "api/library-patterns",
+              "api/rule-parameters"
+            ]
+          },
+          {
+            "group": "Java Extensions",
+            "pages": [
+              "api/business-rule",
+              "api/operations",
+              "api/ui-components"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "Intelligent DITA style guide with embedded rule enforcement",
+    "Generic rule library using Schematron abstract patterns",
+    "Automatic Schematron schema generation from style guide topics",
+    "Discoverable documentation through oXygen tooltips",
+    "oXygen framework extension with DIM-specific actions",
+    "Sample style guide as starting point for customization",
+    "Rule instantiation through DITA markup",
+    "Meta-information annotations for element and attribute usage"
+  ],
+  "publicApiSurface": [
+    "gen-rules.xsl - Generate Schematron file from style guide",
+    "gen-mappings.xsl - Generate oXygen configuration for discoverable topics",
+    "dim2sch.xsl - Convert DIM rules to Schematron",
+    "library.sch - Generic Schematron abstract patterns",
+    "avoidWordInElement - Pattern to warn about specific words",
+    "avoidEndFragment - Pattern to warn about element ending fragments",
+    "avoidAttributeInElement - Pattern to warn about forbidden attributes",
+    "BusinessRule - Java class for rule management",
+    "BusinessRuleLibrary - Repository of available rules",
+    "AddBusinessRuleOperation - Operation to add rules to topics",
+    "DIM framework actions - oXygen UI actions for rule management"
+  ]
+}
